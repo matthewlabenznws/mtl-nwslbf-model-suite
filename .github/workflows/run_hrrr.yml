@@ -1,14 +1,23 @@
 name: Run HRRR LBF Plots
 
 "on":
+  workflow_dispatch:
   schedule:
     - cron: "15 * * * *"
-  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
   run-hrrr:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -32,9 +41,10 @@ jobs:
         run: |
           python hrrr_lbf.py
 
-      - name: Upload output images
-        uses: actions/upload-artifact@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: hrrr-lbf-plots
-          path: latest_hrrr_lbf_refl_uh_ir_theta_sr46/*.png
-          retention-days: 7
+          path: site
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
