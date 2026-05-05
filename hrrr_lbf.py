@@ -14,8 +14,6 @@ Original file is located at
 # + 4–6 km Storm-Relative Winds using 700–500 mb proxy
 # ============================================================
 
-!pip -q install herbie-data cfgrib eccodes cartopy geopandas shapely pyproj scipy requests pandas
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 COUNTY_SHP = os.path.join(BASE_DIR, "assets/cb_2018_us_county_500k.shp")
