@@ -1,1 +1,40 @@
+name: Run HRRR LBF Plots
 
+on:
+  schedule:
+    - cron: "15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run-hrrr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libeccodes0 libeccodes-dev proj-bin libproj-dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run HRRR plotting script
+        run: |
+          python hrrr_lbf.py
+
+      - name: Upload output images
+        uses: actions/upload-artifact@v4
+        with:
+          name: hrrr-lbf-plots
+          path: latest_hrrr_lbf_refl_uh_ir_theta_sr46/*.png
+          retention-days: 7
