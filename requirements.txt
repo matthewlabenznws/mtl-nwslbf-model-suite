@@ -1,0 +1,12 @@
+herbie-data
+cfgrib
+eccodes
+cartopy
+geopandas
+shapely
+pyproj
+scipy
+requests
+pandas
+matplotlib
+xarray
