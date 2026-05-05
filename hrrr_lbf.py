@@ -777,3 +777,99 @@ for fhr in fhrs:
     except Exception as e:
         print(f"Failed F{fhr:03d}: {e}")
         continue
+index_path = os.path.join("site", "index.html")
+
+with open(index_path, "w") as f:
+    f.write("""
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HRRR LBF Viewer</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#111; color:white; text-align:center; }
+    img { max-width:95vw; max-height:82vh; border:1px solid #444; }
+    button { margin:3px; padding:6px 10px; background:#333; color:white; border:1px solid #777; cursor:pointer; }
+    button.active { background:#2b7cff; font-weight:bold; }
+    input { width:70%; margin:15px; }
+  </style>
+</head>
+<body>
+  <h2>HRRR LBF Reflectivity / UH / SR Winds</h2>
+  <div id="subtitle"></div>
+  <input id="slider" type="range" min="0" max="48" value="0">
+  <div id="tiles"></div>
+  <br>
+  <button onclick="togglePlay()">Play/Pause</button>
+  <br><br>
+  <img id="plot" src="images/hrrr_lbf_f000.png">
+
+<script>
+const maxFhr = 48;
+let current = 0;
+let playing = false;
+let timer = null;
+
+const plot = document.getElementById("plot");
+const slider = document.getElementById("slider");
+const tiles = document.getElementById("tiles");
+const subtitle = document.getElementById("subtitle");
+
+function fhrName(fhr) {
+  return String(fhr).padStart(3, "0");
+}
+
+function setFrame(fhr) {
+  current = Number(fhr);
+  slider.value = current;
+  plot.src = `images/hrrr_lbf_f${fhrName(current)}.png?t=${Date.now()}`;
+  subtitle.innerHTML = `Forecast Hour: F${fhrName(current)}`;
+
+  document.querySelectorAll("button.frame").forEach(btn => btn.classList.remove("active"));
+  const active = document.getElementById(`btn${current}`);
+  if (active) active.classList.add("active");
+}
+
+for (let i = 0; i <= maxFhr; i++) {
+  const btn = document.createElement("button");
+  btn.className = "frame";
+  btn.innerText = `F${fhrName(i)}`;
+  btn.id = `btn${i}`;
+  btn.onclick = () => setFrame(i);
+  tiles.appendChild(btn);
+}
+
+slider.oninput = () => setFrame(slider.value);
+
+function togglePlay() {
+  playing = !playing;
+  if (playing) {
+    timer = setInterval(() => {
+      current = current >= maxFhr ? 0 : current + 1;
+      setFrame(current);
+    }, 700);
+  } else {
+    clearInterval(timer);
+  }
+}
+
+setFrame(0);
+</script>
+</body>
+</html>
+""")
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
