@@ -36,18 +36,6 @@ from herbie import Herbie
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-cycle_str = f"{cycle_date}_{cycle_hour:02d}z"
-
-OUTDIR = os.path.join(
-    "site",
-    "runs",
-    cycle_str
-)
-
-os.makedirs(OUTDIR, exist_ok=True)
-os.makedirs(OUTDIR, exist_ok=True)
-os.makedirs("site", exist_ok=True)
-
 import zipfile
 
 zip_path = os.path.join(BASE_DIR, "assets", "c_18mr25.zip")
@@ -347,7 +335,16 @@ def plot_city_labels(ax, cities, zorder=40, fontsize=9):
 # GET LATEST HRRR CYCLE
 # ----------------------------
 cycle_date, cycle_hour = find_latest_hrrr_cycle()
+cycle_str = f"{cycle_date}_{cycle_hour:02d}z"
 
+OUTDIR = os.path.join(
+    "site",
+    "runs",
+    cycle_str
+)
+
+os.makedirs(OUTDIR, exist_ok=True)
+os.makedirs("site", exist_ok=True)
 if cycle_hour in [0, 6, 12, 18]:
     fhrs = range(START_FHR, MAX_FHR + 1)
 else:
