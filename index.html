@@ -87,7 +87,22 @@
       background: #2b7cff;
       border-color: #9ec0ff;
     }
+    .tiles button.available {
+      background: #2b7cff;
+      color: white;
+      border-color: #9ec0ff;
+    }
 
+    .tiles button.missing {
+      background: #111;
+      color: #aaa;
+      border-color: #555;
+    }
+
+    .tiles button.active {
+      outline: 2px solid white;
+      font-weight: bold;
+        }
     .image-wrap {
       padding: 10px 0 18px 0;
     }
@@ -141,29 +156,28 @@
   <div class="hint">Use ←/→ arrow keys or forecast-hour buttons to step through frames.</div>
 
 <script>
+<script>
 const maxFhr = 48;
+const imageBaseUrl = "https://pub-4692e0b2785741a0905f9b401343f27b.r2.dev
+";
 
-// Add archived runs here.
-// Newest run should be first.
 const runs = [
+  "20260506_22z",
   "20260506_21z",
   "20260506_20z",
   "20260506_19z",
   "20260506_18z",
-  "20260506_17z",
-  "20260506_16z"
+  "20260506_17z"
 ];
-const imageBaseUrl = "https://pub-4692e0b2785741a0905f9b401343f27b.r2.dev
-";
+
 const domains = {
   "regional": "Default",
   "lbf": "LBF",
   "central_plains": "Central Plains"
 };
 
+let selectedRun = runs.length > 0 ? runs[0] : "";
 let selectedDomain = "regional";
-const domainSelect = document.getElementById("domainSelect");
-let selectedRun = runs[0];
 let current = 0;
 let playing = false;
 let timer = null;
@@ -175,49 +189,66 @@ const validText = document.getElementById("validText");
 const fhrLabel = document.getElementById("fhrLabel");
 const playBtn = document.getElementById("playBtn");
 const runSelect = document.getElementById("runSelect");
+const domainSelect = document.getElementById("domainSelect");
 
 function fhrName(fhr) {
   return String(fhr).padStart(3, "0");
 }
 
 function imgSrc(run, fhr) {
+  if (!run || !selectedDomain || !imageBaseUrl) return "";
   return `${imageBaseUrl}/runs/${run}/${selectedDomain}/hrrr_lbf_f${fhrName(fhr)}.png?t=${Date.now()}`;
+}
+
+function prettyRun(run) {
+  if (!run) return "No runs yet";
+
+  const parts = run.split("_");
+  const ymd = parts[0];
+  const hour = parts[1].replace("z", "");
+
+  const year  = ymd.slice(0,4);
+  const month = ymd.slice(4,6);
+  const day   = ymd.slice(6,8);
+
+  return `${year}-${month}-${day} ${hour}z`;
 }
 
 function setFrame(fhr) {
   current = Math.max(0, Math.min(maxFhr, Number(fhr)));
   slider.value = current;
 
-  const fhrString = `F${fhrName(current)}`;
-  plot.src = imgSrc(selectedRun, current);
+  const fhrString = fhrName(current);
+  const src = imgSrc(selectedRun, current);
 
-  validText.innerHTML = `Run: ${prettyRun(selectedRun)} | Forecast Hour: ${fhrString}`;
+  if (src) {
+    plot.src = src;
+  }
+
+  validText.innerHTML = `${prettyRun(selectedRun)} | ${domains[selectedDomain]} | Hour ${fhrString}`;
   fhrLabel.innerHTML = fhrString;
 
   document.querySelectorAll("button.frame").forEach(btn => btn.classList.remove("active"));
   const active = document.getElementById(`btn${current}`);
   if (active) active.classList.add("active");
-
-  preloadNeighbors(current);
-}
-
-function preloadNeighbors(fhr) {
-  [fhr + 1, fhr + 2, fhr - 1].forEach(n => {
-    if (n >= 0 && n <= maxFhr) {
-      const img = new Image();
-      img.src = imgSrc(selectedRun, n);
-    }
-  });
 }
 
 function changeRun() {
   selectedRun = runSelect.value;
+  refreshHourAvailability();
+  setFrame(current);
+}
+
+function changeDomain() {
+  selectedDomain = domainSelect.value || "regional";
+  refreshHourAvailability();
   setFrame(current);
 }
 
 function latestRun() {
   selectedRun = runs[0];
   runSelect.value = selectedRun;
+  refreshHourAvailability();
   setFrame(0);
 }
 
@@ -238,54 +269,30 @@ function togglePlay() {
 
 for (let i = 0; i <= maxFhr; i++) {
   const btn = document.createElement("button");
-  btn.className = "frame";
-  btn.innerText = `F${fhrName(i)}`;
+  btn.className = "frame missing";
+  btn.innerText = fhrName(i);
   btn.id = `btn${i}`;
   btn.onclick = () => setFrame(i);
   tiles.appendChild(btn);
 }
 
-function prettyRun(run) {
-  const parts = run.split("_");
-
-  const ymd = parts[0];
-  const hour = parts[1].replace("z", "");
-
-  const year  = ymd.slice(0,4);
-  const month = ymd.slice(4,6);
-  const day   = ymd.slice(6,8);
-
-  return `Tue ${year}-${month}-${day} ${hour}z`;
-}
-
 runs.forEach(run => {
   const option = document.createElement("option");
-
   option.value = run;
   option.text = prettyRun(run);
-
   runSelect.appendChild(option);
 });
 
 Object.entries(domains).forEach(([key, label]) => {
   const option = document.createElement("option");
-
   option.value = key;
   option.text = label;
-
   domainSelect.appendChild(option);
 });
-domainSelect.value = selectedDomain;
 
-function changeDomain() {
-  selectedDomain = domainSelect.value;
-  setFrame(current);
-}
 function refreshHourAvailability() {
   for (let i = 0; i <= maxFhr; i++) {
-
     const btn = document.getElementById(`btn${i}`);
-
     if (!btn) continue;
 
     btn.classList.remove("available", "missing");
@@ -321,13 +328,10 @@ document.addEventListener("keydown", function(e) {
 });
 
 runSelect.value = selectedRun;
-domainSelect.value = selectedDomain || "regional";
-selectedDomain = domainSelect.value;
+domainSelect.value = selectedDomain;
 
 refreshHourAvailability();
-
 setInterval(refreshHourAvailability, 15000);
-
 setFrame(0);
 </script>
 </body>
