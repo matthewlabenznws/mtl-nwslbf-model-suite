@@ -32,7 +32,8 @@ import geopandas as gpd
 
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from herbie import Herbie
-
+import boto3
+from botocore.client import Config
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -44,7 +45,53 @@ extract_path = os.path.join(BASE_DIR, "assets")
 if os.path.exists(zip_path):
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(extract_path)
+# ----------------------------
+# CLOUDFLARE R2 SETTINGS
+# ----------------------------
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID")
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY")
+R2_BUCKET = os.environ.get("R2_BUCKET")
+R2_PUBLIC_BASE_URL = os.environ.get("R2_PUBLIC_BASE_URL", "").rstrip("/")
 
+USE_R2 = all([
+    R2_ACCOUNT_ID,
+    R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY,
+    R2_BUCKET,
+    R2_PUBLIC_BASE_URL
+])
+
+if USE_R2:
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=R2_ACCESS_KEY_ID,
+        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+        config=Config(signature_version="s3v4"),
+        region_name="auto",
+    )
+else:
+    s3 = None
+    print("R2 secrets not found. Skipping live R2 uploads.")
+
+
+def upload_to_r2(local_path, object_key):
+    if not USE_R2:
+        return
+
+    s3.upload_file(
+        local_path,
+        R2_BUCKET,
+        object_key,
+        ExtraArgs={
+            "ContentType": "image/png",
+            "CacheControl": "no-cache"
+        }
+    )
+
+    print(f"Uploaded to R2: {R2_PUBLIC_BASE_URL}/{object_key}")
+    
 DOMAINS = {
     "lbf": {
         "label": "LBF",
@@ -729,6 +776,9 @@ def plot_domain_from_fields(fields, domain_key, cfg, fhr):
 
         print("Saved:", outname)
 
+        object_key = f"runs/{cycle_str}/{domain_key}/hrrr_lbf_f{fhr:03d}.png"
+        upload_to_r2(outname, object_key)
+
     except Exception as e:
         print(f"Failed {domain_key.upper()} F{fhr:03d}: {e}")
 
@@ -915,6 +965,7 @@ const maxFhr = 48;
 const runs = [
   {runs_js}
 ];
+const imageBaseUrl = "{R2_PUBLIC_BASE_URL}";
 const domains = {{
   "regional": "Default",
   "lbf": "LBF",
@@ -941,7 +992,7 @@ function fhrName(fhr) {{
 }}
 
 function imgSrc(run, fhr) {{
-  return `runs/${{run}}/${{selectedDomain}}/hrrr_lbf_f${{fhrName(fhr)}}.png?t=${{Date.now()}}`;
+  return `${{imageBaseUrl}}/runs/${{run}}/${{selectedDomain}}/hrrr_lbf_f${{fhrName(fhr)}}.png?t=${{Date.now()}}`;
 }}
 
 function setFrame(fhr) {{
@@ -1085,6 +1136,9 @@ domainSelect.value = selectedDomain || "regional";
 selectedDomain = domainSelect.value;
 
 refreshHourAvailability();
+
+setInterval(refreshHourAvailability, 15000);
+
 setFrame(0);
 </script>
 </body>
