@@ -45,9 +45,40 @@ if os.path.exists(zip_path):
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(extract_path)
 
-# LBF domain
-LON_MIN, LON_MAX = -103.8, -97.0
-LAT_MIN, LAT_MAX = 40.0, 43.4
+DOMAINS = {
+    "lbf": {
+        "label": "LBF",
+        "extent": [-103.8, -97.0, 40.0, 43.4],
+        "title_size": 14,
+        "subtitle_size": 11,
+        "logo_ax": [0.78, 0.70, 0.10, 0.10],
+        "office_text_xy": [0.83, 0.71],
+        "credit_xy": [0.13, 0.25],
+        "barb_skip": 11,
+    },
+
+    "regional": {
+        "label": "Default",
+        "extent": [-107.5, -93.0, 38.5, 44.2],
+        "title_size": 16,
+        "subtitle_size": 11,
+        "logo_ax": [0.78, 0.63, 0.10, 0.10],
+        "office_text_xy": [0.83, 0.64],
+        "credit_xy": [0.13, 0.31],
+        "barb_skip": 20,
+    },
+
+    "central_plains": {
+        "label": "Central Plains",
+        "extent": [-107.5, -91.0, 34.5, 45.2],
+        "title_size": 15,
+        "subtitle_size": 11,
+        "logo_ax": [0.78, 0.77, 0.10, 0.10],
+        "office_text_xy": [0.83, 0.78],
+        "credit_xy": [0.13, 0.175],
+        "barb_skip": 24,
+    },
+}
 
 COUNTY_SHP = os.path.join(BASE_DIR, "assets", "cb_2018_us_county_500k.shp")
 STATE_SHP = os.path.join(BASE_DIR, "assets", "cb_2018_us_state_500k.shp")
@@ -358,79 +389,45 @@ print("Forecast hours:", list(fhrs))
 # ----------------------------
 # MAIN LOOP
 # ----------------------------
-for fhr in fhrs:
+def run_plot_for_domain(domain_key, cfg, fhr):
+    global LON_MIN, LON_MAX, LAT_MIN, LAT_MAX
+
+    LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = cfg["extent"]
+
+    domain_outdir = os.path.join(
+        "site",
+        "runs",
+        cycle_str,
+        domain_key
+    )
+    os.makedirs(domain_outdir, exist_ok=True)
 
     print("\n" + "=" * 70)
-    print(f"Processing HRRR {cycle_date} {cycle_hour:02d}Z F{fhr:03d}")
+    print(f"Processing {domain_key.upper()} | HRRR {cycle_date} {cycle_hour:02d}Z F{fhr:03d}")
     print("=" * 70)
 
     try:
         # Reflectivity
-        refl_da = hrrr_field(
-            cycle_date,
-            cycle_hour,
-            fhr,
-            product="nat",
-            search=":REFD:1000 m",
-            label="1 km reflectivity"
-        )
+        refl_da = hrrr_field(cycle_date, cycle_hour, fhr, "nat", ":REFD:1000 m", "1 km reflectivity")
 
         lat, lon = get_lat_lon(refl_da)
         refl = np.asarray(refl_da.values, dtype=float)
         refl = np.where(refl >= REF_LEVELS[0], refl, np.nan)
 
         # UH
-        uh25_da = hrrr_field(
-            cycle_date,
-            cycle_hour,
-            fhr,
-            product="sfc",
-            search=":MXUPHL:5000-2000 m",
-            label="2–5 km UH"
-        )
-
-        uh03_da = hrrr_field(
-            cycle_date,
-            cycle_hour,
-            fhr,
-            product="sfc",
-            search=":MXUPHL:3000-0 m",
-            label="0–3 km UH"
-        )
+        uh25_da = hrrr_field(cycle_date, cycle_hour, fhr, "sfc", ":MXUPHL:5000-2000 m", "2–5 km UH")
+        uh03_da = hrrr_field(cycle_date, cycle_hour, fhr, "sfc", ":MXUPHL:3000-0 m", "0–3 km UH")
 
         uh25 = np.asarray(uh25_da.values, dtype=float)
         uh03 = np.asarray(uh03_da.values, dtype=float)
 
         # Simulated IR
-        ir_da = hrrr_field(
-            cycle_date,
-            cycle_hour,
-            fhr,
-            product="sfc",
-            search=":SBT123:",
-            label="simulated IR brightness temperature"
-        )
-
+        ir_da = hrrr_field(cycle_date, cycle_hour, fhr, "sfc", ":SBT123:", "simulated IR brightness temperature")
         ir_c = k_to_c(ir_da.values)
 
         # Theta cold pools
-        t2_da = hrrr_field(
-            cycle_date,
-            cycle_hour,
-            fhr,
-            product="sfc",
-            search=":TMP:2 m",
-            label="2m temperature"
-        )
-
-        ps_da = hrrr_field(
-            cycle_date,
-            cycle_hour,
-            fhr,
-            product="sfc",
-            search=":PRES:surface",
-            label="surface pressure"
-        )
+        t2_da = hrrr_field(cycle_date, cycle_hour, fhr, "sfc", ":TMP:2 m", "2m temperature")
+        ps_da = hrrr_field(cycle_date, cycle_hour, fhr, "sfc", ":PRES:surface", "surface pressure")
 
         t2_k = np.asarray(t2_da.values, dtype=float)
         ps_pa = np.asarray(ps_da.values, dtype=float)
@@ -469,23 +466,8 @@ for fhr in fhrs:
 
         # Storm motion
         try:
-            storm_u_da = hrrr_field(
-                cycle_date,
-                cycle_hour,
-                fhr,
-                product="sfc",
-                search=":USTM:",
-                label="storm motion u"
-            )
-
-            storm_v_da = hrrr_field(
-                cycle_date,
-                cycle_hour,
-                fhr,
-                product="sfc",
-                search=":VSTM:",
-                label="storm motion v"
-            )
+            storm_u_da = hrrr_field(cycle_date, cycle_hour, fhr, "sfc", ":USTM:", "storm motion u")
+            storm_v_da = hrrr_field(cycle_date, cycle_hour, fhr, "sfc", ":VSTM:", "storm motion v")
 
             storm_u_native = np.asarray(storm_u_da.values, dtype=float)
             storm_v_native = np.asarray(storm_v_da.values, dtype=float)
@@ -506,7 +488,7 @@ for fhr in fhrs:
         sr_v46 = v46_native - storm_v_native
         sr46_kt = ms_to_kt(np.sqrt(sr_u46**2 + sr_v46**2))
 
-        # Subset to LBF
+        # Subset to selected domain
         lat_sub, lon_sub, [
             refl_sub,
             uh25_sub,
@@ -557,14 +539,12 @@ for fhr in fhrs:
         fig = plt.figure(figsize=(14, 10))
         ax = plt.axes(projection=ccrs.PlateCarree())
 
-        ax.set_extent([LON_MIN, LON_MAX, LAT_MIN, LAT_MAX], crs=ccrs.PlateCarree())
+        ax.set_extent(cfg["extent"], crs=ccrs.PlateCarree())
         ax.add_feature(cfeature.LAND, facecolor="white", zorder=0)
 
         # Sim IR
         ax.contourf(
-            lon_sub,
-            lat_sub,
-            ir_mask,
+            lon_sub, lat_sub, ir_mask,
             levels=[-130, -40],
             colors=["#d0d0d0"],
             alpha=0.35,
@@ -574,9 +554,7 @@ for fhr in fhrs:
 
         # Theta cold pools
         ax.contourf(
-            lon_sub,
-            lat_sub,
-            theta_cp_mask,
+            lon_sub, lat_sub, theta_cp_mask,
             levels=[-30, -2],
             colors="none",
             hatches=["///"],
@@ -585,9 +563,7 @@ for fhr in fhrs:
         )
 
         ax.contour(
-            lon_sub,
-            lat_sub,
-            theta_prime_smooth,
+            lon_sub, lat_sub, theta_prime_smooth,
             levels=[-2],
             colors="#b7d6ff",
             linewidths=1.2,
@@ -597,9 +573,7 @@ for fhr in fhrs:
 
         # Reflectivity
         pm = ax.contourf(
-            lon_sub,
-            lat_sub,
-            refl_plot,
+            lon_sub, lat_sub, refl_plot,
             levels=bounds,
             cmap=cmap,
             norm=norm,
@@ -610,9 +584,7 @@ for fhr in fhrs:
 
         # UH fill and outlines
         ax.contourf(
-            lon_sub,
-            lat_sub,
-            uh_combined,
+            lon_sub, lat_sub, uh_combined,
             levels=[0.5, 1.5],
             colors=["#8f8f8f"],
             alpha=0.55,
@@ -621,9 +593,7 @@ for fhr in fhrs:
         )
 
         ax.contour(
-            lon_sub,
-            lat_sub,
-            uh25_plot,
+            lon_sub, lat_sub, uh25_plot,
             levels=[75],
             colors="#4a4a4a",
             linewidths=0.9,
@@ -632,9 +602,7 @@ for fhr in fhrs:
         )
 
         ax.contour(
-            lon_sub,
-            lat_sub,
-            uh03_plot,
+            lon_sub, lat_sub, uh03_plot,
             levels=[50],
             colors="black",
             linewidths=0.9,
@@ -644,11 +612,13 @@ for fhr in fhrs:
 
         # 4–6 km SR wind barbs
         if PLOT_SR_WIND_BARBS:
+            barb_skip = cfg.get("barb_skip", BARB_SKIP)
+
             ax.barbs(
-                lon_sub[::BARB_SKIP, ::BARB_SKIP],
-                lat_sub[::BARB_SKIP, ::BARB_SKIP],
-                ms_to_kt(sr_u46_sub[::BARB_SKIP, ::BARB_SKIP]),
-                ms_to_kt(sr_v46_sub[::BARB_SKIP, ::BARB_SKIP]),
+                lon_sub[::barb_skip, ::barb_skip],
+                lat_sub[::barb_skip, ::barb_skip],
+                ms_to_kt(sr_u46_sub[::barb_skip, ::barb_skip]),
+                ms_to_kt(sr_v46_sub[::barb_skip, ::barb_skip]),
                 length=5,
                 linewidth=0.7,
                 color="black",
@@ -660,6 +630,7 @@ for fhr in fhrs:
         add_shapefile_outline(ax, STATE_SHP, edgecolor="black", linewidth=1.4, zorder=13)
         add_shapefile_outline(ax, COUNTY_SHP, edgecolor="lightgray", linewidth=0.35, zorder=12)
 
+        # Only add the LBF outline/counties on domains where it makes sense
         add_counties_clipped_to_cwa(ax, COUNTY_SHP, lbf_geom, lw=1.0, color="black", zorder=13)
 
         ax.add_geometries(
@@ -680,8 +651,6 @@ for fhr in fhrs:
             zorder=15
         )
 
-        #add_interstates(ax, INTERSTATE_SHP, edgecolor="red", linewidth=1.0, zorder=16)
-
         if PLOT_CITY_LABELS:
             plot_city_labels(ax, STATIONS, zorder=40, fontsize=9)
 
@@ -689,7 +658,10 @@ for fhr in fhrs:
         init_dt = datetime.strptime(f"{cycle_date}{cycle_hour:02d}", "%Y%m%d%H")
         valid_dt = init_dt + timedelta(hours=fhr)
 
-        main_title = "HRRR | 1 km Refl, 2-5km UH > 75, 0-3km UH > 50, Sim. IR, θ Cold Pools, 4-6 km SR Winds"
+        main_title = (
+            f"HRRR | {cfg['label']} | 1 km Refl, 2-5km UH > 75, "
+            "0-3km UH > 50, Sim. IR, θ Cold Pools, 4-6 km SR Winds"
+        )
         valid_title = f"F{fhr:03d} Valid: {valid_dt:%a %Y-%m-%d %Hz}"
         init_title  = f"Init: {init_dt:%a %Y-%m-%d %Hz} HRRR"
 
@@ -699,7 +671,7 @@ for fhr in fhrs:
             transform=ax.transAxes,
             ha="left",
             va="bottom",
-            fontsize=14,
+            fontsize=cfg["title_size"],
             fontweight="bold"
         )
 
@@ -709,7 +681,7 @@ for fhr in fhrs:
             transform=ax.transAxes,
             ha="left",
             va="bottom",
-            fontsize=11,
+            fontsize=cfg["subtitle_size"],
             fontweight="bold"
         )
 
@@ -719,7 +691,7 @@ for fhr in fhrs:
             transform=ax.transAxes,
             ha="right",
             va="bottom",
-            fontsize=11,
+            fontsize=cfg["subtitle_size"],
             fontweight="bold"
         )
 
@@ -742,12 +714,13 @@ for fhr in fhrs:
         # Logo
         if os.path.exists(LOGO_PATH):
             logo = mpimg.imread(LOGO_PATH)
-            logo_ax = fig.add_axes([0.78, 0.70, 0.10, 0.10], zorder=30)
+            logo_ax = fig.add_axes(cfg["logo_ax"], zorder=30)
             logo_ax.imshow(logo)
             logo_ax.axis("off")
 
         fig.text(
-            0.83, 0.71,
+            cfg["office_text_xy"][0],
+            cfg["office_text_xy"][1],
             "NWS North Platte, NE",
             ha="center",
             va="top",
@@ -759,7 +732,8 @@ for fhr in fhrs:
         )
 
         fig.text(
-            0.13, 0.25,
+            cfg["credit_xy"][0],
+            cfg["credit_xy"][1],
             "Plot created by: Matthew Labenz",
             ha="left",
             va="bottom",
@@ -770,19 +744,22 @@ for fhr in fhrs:
         )
 
         outname = os.path.join(
-                OUTDIR,
-                f"hrrr_lbf_f{fhr:03d}.png"
-                                            )
+            domain_outdir,
+            f"hrrr_lbf_f{fhr:03d}.png"
+        )
 
         plt.savefig(outname, dpi=200, bbox_inches="tight")
-        plt.show()
         plt.close(fig)
 
         print("Saved:", outname)
 
     except Exception as e:
-        print(f"Failed F{fhr:03d}: {e}")
-        continue
+        print(f"Failed {domain_key.upper()} F{fhr:03d}: {e}")
+
+
+for domain_key, cfg in DOMAINS.items():
+    for fhr in fhrs:
+        run_plot_for_domain(domain_key, cfg, fhr)
 runs_dir = os.path.join("site", "runs")
 os.makedirs(runs_dir, exist_ok=True)
 
@@ -926,12 +903,16 @@ with open(index_path, "w") as f:
         <div class="meta" id="validText">Forecast Hour: F000</div>
       </div>
       <div class="meta">
-        Run:
-        <select id="runSelect" onchange="changeRun()"></select>
+  Run:
+  <select id="runSelect" onchange="changeRun()"></select>
+
+  &nbsp;&nbsp;
+
+  Domain:
+  <select id="domainSelect" onchange="changeDomain()"></select>
+</div>
       </div>
     </div>
-  </div>
-
   <div class="controls">
     <button onclick="togglePlay()" id="playBtn">▶ Play</button>
     <button onclick="latestRun()">Latest</button>
@@ -955,7 +936,14 @@ const maxFhr = 48;
 const runs = [
   {runs_js}
 ];
+const domains = {
+  "lbf": "LBF",
+  "regional": "Default",
+  "central_plains": "Central Plains"
+};
 
+let selectedDomain = "Default";
+const domainSelect = document.getElementById("domainSelect");
 let selectedRun = runs[0];
 let current = 0;
 let playing = false;
@@ -973,9 +961,9 @@ function fhrName(fhr) {{
   return String(fhr).padStart(3, "0");
 }}
 
-function imgSrc(run, fhr) {{
-  return `runs/${{run}}/hrrr_lbf_f${{fhrName(fhr)}}.png?t=${{Date.now()}}`;
-}}
+function imgSrc(run, fhr) {
+  return `runs/${run}/${selectedDomain}/hrrr_lbf_f${fhrName(fhr)}.png?t=${Date.now()}`;
+}
 
 function setFrame(fhr) {{
   current = Math.max(0, Math.min(maxFhr, Number(fhr)));
@@ -1059,6 +1047,20 @@ runs.forEach(run => {{
 
   runSelect.appendChild(option);
 }});
+
+Object.entries(domains).forEach(([key, label]) => {{
+  const option = document.createElement("option");
+
+  option.value = key;
+  option.text = label;
+
+  domainSelect.appendChild(option);
+}});
+
+function changeDomain() {{
+  selectedDomain = domainSelect.value;
+  setFrame(current);
+}}
 
 slider.oninput = () => setFrame(slider.value);
 
