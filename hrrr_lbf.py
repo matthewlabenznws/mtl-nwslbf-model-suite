@@ -748,7 +748,7 @@ def run_plot_for_domain(domain_key, cfg, fhr):
             f"hrrr_lbf_f{fhr:03d}.png"
         )
 
-        plt.savefig(outname, dpi=200, bbox_inches="tight")
+        plt.savefig(outname, dpi=140, bbox_inches="tight")
         plt.close(fig)
 
         print("Saved:", outname)
@@ -757,9 +757,12 @@ def run_plot_for_domain(domain_key, cfg, fhr):
         print(f"Failed {domain_key.upper()} F{fhr:03d}: {e}")
 
 
-for domain_key, cfg in DOMAINS.items():
-    for fhr in fhrs:
-        run_plot_for_domain(domain_key, cfg, fhr)
+for fhr in fhrs:
+    fields = load_hrrr_fields(fhr)
+
+    for domain_key, cfg in DOMAINS.items():
+        plot_domain(fields, domain_key, cfg, fhr)
+        
 runs_dir = os.path.join("site", "runs")
 os.makedirs(runs_dir, exist_ok=True)
 
@@ -1056,6 +1059,7 @@ Object.entries(domains).forEach(([key, label]) => {{
 
   domainSelect.appendChild(option);
 }});
+domainSelect.value = selectedDomain;
 
 function changeDomain() {{
   selectedDomain = domainSelect.value;
