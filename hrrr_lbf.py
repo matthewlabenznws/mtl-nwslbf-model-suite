@@ -60,7 +60,7 @@ DOMAINS = {
     "regional": {
         "label": "Default",
         "extent": [-107.5, -93.0, 38.5, 44.2],
-        "title_size": 16,
+        "title_size": 13,
         "subtitle_size": 11,
         "logo_ax": [0.78, 0.63, 0.10, 0.10],
         "office_text_xy": [0.83, 0.64],
@@ -71,7 +71,7 @@ DOMAINS = {
     "central_plains": {
         "label": "Central Plains",
         "extent": [-107.5, -91.0, 34.5, 45.2],
-        "title_size": 15,
+        "title_size": 13,
         "subtitle_size": 11,
         "logo_ax": [0.78, 0.77, 0.10, 0.10],
         "office_text_xy": [0.83, 0.78],
