@@ -1030,14 +1030,14 @@ function prettyRun(run) {{
   return `Tue ${{year}}-${{month}}-${{day}} ${{hour}}z`;
 }}
 
-runs.forEach(run => {
+runs.forEach(run => {{
   const option = document.createElement("option");
 
   option.value = run;
   option.text = prettyRun(run);
 
   runSelect.appendChild(option);
-});
+}});
 
 slider.oninput = () => setFrame(slider.value);
 
