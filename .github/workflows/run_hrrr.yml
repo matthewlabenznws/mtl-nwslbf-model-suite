@@ -19,9 +19,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repo
-        uses: actions/checkout@v4
-
       - name: Install system packages
         run: |
           sudo apt-get update
@@ -41,10 +38,9 @@ jobs:
         run: |
           python hrrr_lbf.py
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: site
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
