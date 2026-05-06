@@ -146,6 +146,7 @@ const maxFhr = 48;
 // Add archived runs here.
 // Newest run should be first.
 const runs = [
+  "20260506_19z",
   "20260506_18z",
   "20260506_17z",
   "20260506_16z"
@@ -270,10 +271,36 @@ Object.entries(domains).forEach(([key, label]) => {
 
   domainSelect.appendChild(option);
 });
+domainSelect.value = selectedDomain;
 
 function changeDomain() {
   selectedDomain = domainSelect.value;
   setFrame(current);
+}
+function refreshHourAvailability() {
+  for (let i = 0; i <= maxFhr; i++) {
+
+    const btn = document.getElementById(`btn${i}`);
+
+    if (!btn) continue;
+
+    btn.classList.remove("available", "missing");
+    btn.classList.add("missing");
+
+    const testImg = new Image();
+
+    testImg.onload = () => {
+      btn.classList.remove("missing");
+      btn.classList.add("available");
+    };
+
+    testImg.onerror = () => {
+      btn.classList.remove("available");
+      btn.classList.add("missing");
+    };
+
+    testImg.src = imgSrc(selectedRun, i);
+  }
 }
 
 slider.oninput = () => setFrame(slider.value);
@@ -289,6 +316,11 @@ document.addEventListener("keydown", function(e) {
   }
 });
 
+runSelect.value = selectedRun;
+domainSelect.value = selectedDomain || "Default";
+selectedDomain = domainSelect.value;
+
+refreshHourAvailability();
 setFrame(0);
 </script>
 </body>
