@@ -943,7 +943,7 @@ const domains = {{
   "central_plains": "Central Plains"
 }};
 
-let selectedDomain = "Default";
+let selectedDomain = "regional";
 const domainSelect = document.getElementById("domainSelect");
 let selectedRun = runs[0];
 let current = 0;
@@ -1103,7 +1103,7 @@ document.addEventListener("keydown", function(e) {{
 }});
 
 runSelect.value = selectedRun;
-domainSelect.value = selectedDomain || "Default";
+domainSelect.value = selectedDomain || "regional";
 selectedDomain = domainSelect.value;
 
 refreshHourAvailability();
