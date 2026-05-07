@@ -31,6 +31,7 @@ from herbie import Herbie
 # ============================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSET_DIR = os.path.join(BASE_DIR, "assets")
 
 OUTDIR = os.path.join(
     "site",
@@ -40,9 +41,6 @@ OUTDIR = os.path.join(
 )
 
 os.makedirs(OUTDIR, exist_ok=True)
-
-# If you uploaded assets to Colab, put them here:
-ASSET_DIR = "/content/assets"
 
 COUNTY_SHP = os.path.join(ASSET_DIR, "cb_2018_us_county_500k.shp")
 STATE_SHP = os.path.join(ASSET_DIR, "cb_2018_us_state_500k.shp")
