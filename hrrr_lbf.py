@@ -1080,6 +1080,15 @@ runs.forEach(run => {{
 
   runSelect.appendChild(option);
 }});
+Object.entries(products).forEach(([key, label]) => {{
+  const option = document.createElement("option");
+
+  option.value = key;
+  option.text = label;
+
+  productSelect.appendChild(option);
+}});
+
 Object.entries(domains).forEach(([key, label]) => {{
   const option = document.createElement("option");
 
