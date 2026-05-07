@@ -355,12 +355,8 @@ def load_hail_once(fhr):
     # Try common HRRR HAIL search strings.
     # If one fails, the next one is attempted.
     search_options = [
-        ":HAIL:",
-        ":HAIL:surface",
-        ":HAIL:entire atmosphere",
-        ":HAILCAST:",
-        ":HAILCAST:surface",
-    ]
+    ":HAIL:surface:",
+    ":HAIL:surface",]
 
     last_err = None
 
