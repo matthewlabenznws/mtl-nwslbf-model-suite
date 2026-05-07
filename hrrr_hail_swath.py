@@ -487,7 +487,7 @@ def plot_hail_domain(fields, domain_key, cfg, fhr):
     init_dt = datetime.strptime(f"{cycle_date}{cycle_hour:02d}", "%Y%m%d%H")
     valid_dt = init_dt + timedelta(hours=fhr)
 
-    main_title = f"HRRR | {cfg['label']} | Surface Hail Swath"
+    main_title = f"HRRR | {cfg['label']} | Maximum Surface Hail Swath"
     valid_title = f"F{fhr:03d} Valid: {valid_dt:%a %Y-%m-%d %Hz}"
     init_title = f"Init: {init_dt:%a %Y-%m-%d %Hz} HRRR"
 
@@ -585,10 +585,30 @@ def plot_hail_domain(fields, domain_key, cfg, fhr):
 # RUN
 # ============================================================
 
+running_hail = None
+base_lat = None
+base_lon = None
+hail_search_used = None
+
 for fhr in fhrs:
     fields = load_hail_once(fhr)
 
+    if running_hail is None:
+        running_hail = fields["hail"].copy()
+        base_lat = fields["lat"]
+        base_lon = fields["lon"]
+        hail_search_used = fields.get("search", "")
+    else:
+        running_hail = np.fmax(running_hail, fields["hail"])
+
+    swath_fields = {
+        "lat": base_lat,
+        "lon": base_lon,
+        "hail": running_hail,
+        "search": hail_search_used,
+    }
+
     for domain_key, cfg in DOMAINS.items():
-        plot_hail_domain(fields, domain_key, cfg, fhr)
+        plot_hail_domain(swath_fields, domain_key, cfg, fhr)
 
 print("Done. Images saved to:", OUTDIR)
