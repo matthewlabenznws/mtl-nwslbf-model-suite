@@ -371,6 +371,8 @@ cycle_str = f"{cycle_date}_{cycle_hour:02d}z"
 OUTDIR = os.path.join(
     "site",
     "runs",
+    "hrrr",
+    "refl_uh",
     cycle_str
 )
 
@@ -481,7 +483,9 @@ def plot_domain_from_fields(fields, domain_key, cfg, fhr):
 
     LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = cfg["extent"]
 
-    domain_outdir = os.path.join("site", "runs", cycle_str, domain_key)
+    domain_outdir = os.path.join(
+    OUTDIR,
+    domain_key)
     os.makedirs(domain_outdir, exist_ok=True)
 
     print(f"Plotting {domain_key.upper()} | F{fhr:03d}")
