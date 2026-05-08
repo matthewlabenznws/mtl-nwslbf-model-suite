@@ -1,57 +1,33 @@
-name: Run HRRR LBF Plots
+name: HRRR Reflectivity Viewer
 
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  run-hrrr:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out main repo
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: repo
-
-      - name: Restore existing site from gh-pages
-        uses: actions/checkout@v4
-        continue-on-error: true
-        with:
-          ref: gh-pages
-          path: repo/site
-
-      - name: Install system packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libeccodes0 libeccodes-dev proj-bin libproj-dev
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
-      - name: Install Python packages
-        working-directory: repo
+      - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run HRRR refl/UH product
+      - name: Run HRRR Reflectivity/UH
         working-directory: repo
         run: |
           python hrrr_lbf.py
 
-      - name: Run HRRR hail swath product
-        working-directory: repo
-        run: |
-          python hrrr_hail_swath.py
-
-      - name: Deploy to gh-pages branch
+      - name: Deploy site
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: repo/site
-          publish_branch: gh-pages
+          publish_dir: ./repo/site
+          keep_files: true
