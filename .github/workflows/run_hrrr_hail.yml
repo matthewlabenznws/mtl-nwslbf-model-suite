@@ -2,6 +2,7 @@ name: HRRR Hail Swath
 
 on:
   workflow_dispatch:
+
 permissions:
   contents: write
 
@@ -12,6 +13,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Restore existing site from gh-pages
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: old_site
+
+      - name: Restore previous runs
+        run: |
+          mkdir -p site
+          cp -r old_site/* site/ || true
 
       - name: Set up Python
         uses: actions/setup-python@v5
