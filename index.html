@@ -83,11 +83,7 @@
       padding: 5px 8px;
     }
 
-    .tiles button.active {
-      background: #2b7cff;
-      border-color: #9ec0ff;
-    }
-
+    .tiles button.active,
     .tiles button.available {
       background: #2b7cff;
       color: white;
@@ -125,6 +121,7 @@
       <div>
         <div class="main-title">HRRR / RRFS | NWS LBF Model Viewer</div>
       </div>
+
       <div class="meta">
         Model:
         <select id="modelSelect" onchange="changeModel()"></select>
@@ -150,8 +147,8 @@
   <div class="controls">
     <button onclick="togglePlay()" id="playBtn">▶ Play</button>
     <button onclick="latestRun()">Latest</button>
-    <input id="slider" type="range" min="0" max="48" value="0">
-    <div id="fhrLabel">F000</div>
+    <input id="slider" type="range" min="0" max="60" value="0">
+    <div id="fhrLabel">000</div>
   </div>
 
   <div class="tiles" id="tiles"></div>
@@ -165,12 +162,12 @@
 <script>
 const runsByModel = {
   "hrrr": [
+    "20260509_20z",
     "20260509_19z",
     "20260509_18z",
     "20260509_17z",
     "20260509_16z",
-    "20260509_15z",
-    "20260509_14z"
+    "20260509_15z"
   ],
   "rrfs": [
     "20260509_12z",
@@ -206,7 +203,6 @@ let timer = null;
 const plot = document.getElementById("plot");
 const slider = document.getElementById("slider");
 const tiles = document.getElementById("tiles");
-const validText = document.getElementById("validText");
 const fhrLabel = document.getElementById("fhrLabel");
 const playBtn = document.getElementById("playBtn");
 const modelSelect = document.getElementById("modelSelect");
@@ -262,9 +258,9 @@ function prettyRun(run) {
   const ymd = parts[0];
   const hour = parts[1].replace("z", "");
 
-  const year  = ymd.slice(0,4);
-  const month = ymd.slice(4,6);
-  const day   = ymd.slice(6,8);
+  const year = ymd.slice(0, 4);
+  const month = ymd.slice(4, 6);
+  const day = ymd.slice(6, 8);
 
   return `${year}-${month}-${day} ${hour}z`;
 }
@@ -273,17 +269,10 @@ function setFrame(fhr) {
   current = Math.max(0, Math.min(maxFhr, Number(fhr)));
   slider.value = current;
 
-  const fhrString = fhrName(current);
   const src = imgSrc(selectedRun, current);
+  if (src) plot.src = src;
 
-  if (src) {
-    plot.src = src;
-  }
-
-  validText.innerHTML =
-    `${models[selectedModel]} | ${products[selectedProduct]} | ${domains[selectedDomain]} | ${prettyRun(selectedRun)} | Hour ${fhrString}`;
-
-  fhrLabel.innerHTML = fhrString;
+  fhrLabel.innerHTML = fhrName(current);
 
   document.querySelectorAll("button.frame").forEach(btn => btn.classList.remove("active"));
   const active = document.getElementById(`btn${current}`);
@@ -310,9 +299,7 @@ function buildHourButtons() {
   maxFhr = getMaxFhrForRun(selectedModel, selectedRun);
   slider.max = maxFhr;
 
-  if (current > maxFhr) {
-    current = maxFhr;
-  }
+  if (current > maxFhr) current = maxFhr;
 
   for (let i = 0; i <= maxFhr; i++) {
     const btn = document.createElement("button");
@@ -349,6 +336,22 @@ function refreshHourAvailability() {
 
     testImg.src = src;
   }
+}
+
+function populateRunDropdown() {
+  runSelect.innerHTML = "";
+
+  const modelRuns = runsByModel[selectedModel] || [];
+
+  modelRuns.forEach(run => {
+    const option = document.createElement("option");
+    option.value = run;
+    option.text = prettyRun(run);
+    runSelect.appendChild(option);
+  });
+
+  selectedRun = modelRuns.length > 0 ? modelRuns[0] : "";
+  runSelect.value = selectedRun;
 }
 
 function changeModel() {
@@ -414,22 +417,6 @@ Object.entries(models).forEach(([key, label]) => {
   modelSelect.appendChild(option);
 });
 
-function populateRunDropdown() {
-  runSelect.innerHTML = "";
-
-  const modelRuns = runsByModel[selectedModel] || [];
-
-  modelRuns.forEach(run => {
-    const option = document.createElement("option");
-    option.value = run;
-    option.text = prettyRun(run);
-    runSelect.appendChild(option);
-  });
-
-  selectedRun = modelRuns.length > 0 ? modelRuns[0] : "";
-  runSelect.value = selectedRun;
-}
-
 Object.entries(products).forEach(([key, label]) => {
   const option = document.createElement("option");
   option.value = key;
@@ -458,9 +445,9 @@ document.addEventListener("keydown", function(e) {
 });
 
 modelSelect.value = selectedModel;
-runSelect.value = selectedRun;
 productSelect.value = selectedProduct;
 domainSelect.value = selectedDomain;
+
 populateRunDropdown();
 buildHourButtons();
 refreshHourAvailability();
