@@ -105,10 +105,7 @@ DOMAINS = {
 VALID_RRFS_CYCLES = [0, 3, 6, 9, 12, 15, 18, 21]
 
 START_FHR = 1
-if init_dt.hour in [0, 6, 12, 18]:
-    MAX_FHR = 60
-else:
-    MAX_FHR = 1
+MAX_FHR = 1
 
 CYCLE_DELAY_MINUTES = 5
 
@@ -524,6 +521,11 @@ def interp_to_target_grid(src_lat, src_lon, src_field, tgt_lat, tgt_lon):
 # ============================================================
 
 init_dt = find_latest_available_rrfs_cycle()
+if init_dt.hour in [0, 6, 12, 18]:
+    MAX_FHR = 60
+else:
+    MAX_FHR = 1
+
 cycle_str = init_dt.strftime("%Y%m%d_%Hz")
 
 OUTDIR = os.path.join(OUTDIR_BASE, cycle_str)
