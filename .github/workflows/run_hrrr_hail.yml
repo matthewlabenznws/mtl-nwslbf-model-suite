@@ -37,8 +37,9 @@ jobs:
 
       - name: Run HRRR Hail Swath
         run: |
-          python hrrr_hail_swath.py
-
+         python hrrr_hail_swath.py
+         python build_index.py
+         
       - name: Deploy site
         uses: peaceiris/actions-gh-pages@v3
         with:
