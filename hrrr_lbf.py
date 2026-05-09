@@ -898,9 +898,7 @@ with open(index_path, "w") as f:
     <div class="title-row">
       <div>
         <div class="main-title">HRRR / RRFS | NWS LBF Model Viewer</div>
-        <div class="meta" id="validText">Forecast Hour: F000</div>
       </div>
-
       <div class="meta">
         Model:
         <select id="modelSelect" onchange="changeModel()"></select>
