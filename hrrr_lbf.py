@@ -776,7 +776,7 @@ with open(index_path, "w") as f:
 <!DOCTYPE html>
 <html>
 <head>
-  <title>HRRR LBF Viewer</title>
+  <title>NWS LBF Model Viewer</title>
   <style>
     body {{
       margin: 0;
@@ -862,6 +862,18 @@ with open(index_path, "w") as f:
       border-color: #9ec0ff;
     }}
 
+    .tiles button.available {{
+      background: #2b7cff;
+      color: white;
+      border-color: #9ec0ff;
+    }}
+
+    .tiles button.missing {{
+      background: #111;
+      color: #aaa;
+      border-color: #555;
+    }}
+
     .image-wrap {{
       padding: 10px 0 18px 0;
     }}
@@ -885,25 +897,32 @@ with open(index_path, "w") as f:
   <div class="topbar">
     <div class="title-row">
       <div>
-        <div class="main-title">HRRR | LBF Reflectivity / UH / Sim IR / θ Cold Pools / 4–6 km SR Winds</div>
+        <div class="main-title">HRRR / RRFS | NWS LBF Model Viewer</div>
         <div class="meta" id="validText">Forecast Hour: F000</div>
       </div>
+
       <div class="meta">
-  Run:
-<select id="runSelect" onchange="changeRun()"></select>
+        Model:
+        <select id="modelSelect" onchange="changeModel()"></select>
 
-&nbsp;&nbsp;
+        &nbsp;&nbsp;
 
-Product:
-<select id="productSelect" onchange="changeProduct()"></select>
+        Run:
+        <select id="runSelect" onchange="changeRun()"></select>
 
-&nbsp;&nbsp;
+        &nbsp;&nbsp;
 
-Domain:
-<select id="domainSelect" onchange="changeDomain()"></select>
-</div>
+        Product:
+        <select id="productSelect" onchange="changeProduct()"></select>
+
+        &nbsp;&nbsp;
+
+        Domain:
+        <select id="domainSelect" onchange="changeDomain()"></select>
       </div>
     </div>
+  </div>
+
   <div class="controls">
     <button onclick="togglePlay()" id="playBtn">▶ Play</button>
     <button onclick="latestRun()">Latest</button>
@@ -914,18 +933,21 @@ Domain:
   <div class="tiles" id="tiles"></div>
 
   <div class="image-wrap">
-    <img id="plot" src="" alt="HRRR LBF plot">
+    <img id="plot" src="" alt="NWS LBF model plot">
   </div>
 
   <div class="hint">Use ←/→ arrow keys or forecast-hour buttons to step through frames.</div>
 
 <script>
-
-// Add archived runs here.
-// Newest run should be first.
 const runs = [
   {runs_js}
 ];
+
+const models = {{
+  "hrrr": "HRRR",
+  "rrfs": "RRFS"
+}};
+
 const domains = {{
   "regional": "Default",
   "lbf": "LBF",
@@ -937,24 +959,10 @@ const products = {{
   "hail_swath": "Surface Hail Swath"
 }};
 
+let selectedModel = "hrrr";
 let selectedProduct = "refl_uh";
 let selectedDomain = "regional";
-const domainSelect = document.getElementById("domainSelect");
-let selectedRun = runs[0];
-function getMaxFhrForRun(run) {{
-  if (!run) return 18;
-
-  const hourPart = run.split("_")[1];  // example: "18z"
-  const hour = Number(hourPart.replace("z", ""));
-
-  if ([0, 6, 12, 18].includes(hour)) {{
-    return 48;
-  }}
-
-  return 18;
-}}
-
-let maxFhr = getMaxFhrForRun(selectedRun);
+let selectedRun = runs.length > 0 ? runs[0] : "";
 let current = 0;
 let playing = false;
 let timer = null;
@@ -965,33 +973,80 @@ const tiles = document.getElementById("tiles");
 const validText = document.getElementById("validText");
 const fhrLabel = document.getElementById("fhrLabel");
 const playBtn = document.getElementById("playBtn");
+const modelSelect = document.getElementById("modelSelect");
 const runSelect = document.getElementById("runSelect");
 const productSelect = document.getElementById("productSelect");
+const domainSelect = document.getElementById("domainSelect");
 
 function fhrName(fhr) {{
   return String(fhr).padStart(3, "0");
 }}
 
+function getMaxFhrForRun(model, run) {{
+  if (!run) return 18;
+
+  const hourPart = run.split("_")[1];
+  const hour = Number(hourPart.replace("z", ""));
+
+  if (model === "hrrr") {{
+    if ([0, 6, 12, 18].includes(hour)) return 48;
+    return 18;
+  }}
+
+  if (model === "rrfs") {{
+    if ([0, 6, 12, 18].includes(hour)) return 60;
+    return 18;
+  }}
+
+  return 18;
+}}
+
+let maxFhr = getMaxFhrForRun(selectedModel, selectedRun);
+
 function imgSrc(run, fhr) {{
   let filename = "";
 
-  if (selectedProduct === "refl_uh") {{
+  if (selectedModel === "hrrr" && selectedProduct === "refl_uh") {{
     filename = `hrrr_lbf_f${{fhrName(fhr)}}.png`;
-  }} else if (selectedProduct === "hail_swath") {{
+  }} else if (selectedModel === "hrrr" && selectedProduct === "hail_swath") {{
     filename = `hrrr_hail_f${{fhrName(fhr)}}.png`;
+  }} else if (selectedModel === "rrfs" && selectedProduct === "refl_uh") {{
+    filename = `rrfs_lbf_f${{fhrName(fhr)}}.png`;
+  }} else {{
+    return "";
   }}
 
-  return `runs/hrrr/${{selectedProduct}}/${{run}}/${{selectedDomain}}/${{filename}}?t=${{Date.now()}}`;
+  return `runs/${{selectedModel}}/${{selectedProduct}}/${{run}}/${{selectedDomain}}/${{filename}}?t=${{Date.now()}}`;
+}}
+
+function prettyRun(run) {{
+  if (!run) return "No runs yet";
+
+  const parts = run.split("_");
+  const ymd = parts[0];
+  const hour = parts[1].replace("z", "");
+
+  const year  = ymd.slice(0,4);
+  const month = ymd.slice(4,6);
+  const day   = ymd.slice(6,8);
+
+  return `${{year}}-${{month}}-${{day}} ${{hour}}z`;
 }}
 
 function setFrame(fhr) {{
   current = Math.max(0, Math.min(maxFhr, Number(fhr)));
   slider.value = current;
 
-  const fhrString = `F${{fhrName(current)}}`;
-  plot.src = imgSrc(selectedRun, current);
+  const fhrString = fhrName(current);
+  const src = imgSrc(selectedRun, current);
 
-  validText.innerHTML = `Run: ${{prettyRun(selectedRun)}} | Forecast Hour: ${{fhrString}}`;
+  if (src) {{
+    plot.src = src;
+  }}
+
+  validText.innerHTML =
+    `${{models[selectedModel]}} | ${{products[selectedProduct]}} | ${{domains[selectedDomain]}} | ${{prettyRun(selectedRun)}} | Hour ${{fhrString}}`;
+
   fhrLabel.innerHTML = fhrString;
 
   document.querySelectorAll("button.frame").forEach(btn => btn.classList.remove("active"));
@@ -1004,10 +1059,68 @@ function setFrame(fhr) {{
 function preloadNeighbors(fhr) {{
   [fhr + 1, fhr + 2, fhr - 1].forEach(n => {{
     if (n >= 0 && n <= maxFhr) {{
-      const img = new Image();
-      img.src = imgSrc(selectedRun, n);
+      const src = imgSrc(selectedRun, n);
+      if (src) {{
+        const img = new Image();
+        img.src = src;
+      }}
     }}
   }});
+}}
+
+function buildHourButtons() {{
+  tiles.innerHTML = "";
+
+  maxFhr = getMaxFhrForRun(selectedModel, selectedRun);
+  slider.max = maxFhr;
+
+  if (current > maxFhr) {{
+    current = maxFhr;
+  }}
+
+  for (let i = 0; i <= maxFhr; i++) {{
+    const btn = document.createElement("button");
+    btn.className = "frame missing";
+    btn.innerText = fhrName(i);
+    btn.id = `btn${{i}}`;
+    btn.onclick = () => setFrame(i);
+    tiles.appendChild(btn);
+  }}
+}}
+
+function refreshHourAvailability() {{
+  for (let i = 0; i <= maxFhr; i++) {{
+    const btn = document.getElementById(`btn${{i}}`);
+    if (!btn) continue;
+
+    btn.classList.remove("available", "missing");
+    btn.classList.add("missing");
+
+    const src = imgSrc(selectedRun, i);
+    if (!src) continue;
+
+    const testImg = new Image();
+
+    testImg.onload = () => {{
+      btn.classList.remove("missing");
+      btn.classList.add("available");
+    }};
+
+    testImg.onerror = () => {{
+      btn.classList.remove("available");
+      btn.classList.add("missing");
+    }};
+
+    testImg.src = src;
+  }}
+}}
+
+function changeModel() {{
+  selectedModel = modelSelect.value;
+  current = 0;
+  buildHourButtons();
+  refreshHourAvailability();
+  setFrame(0);
 }}
 
 function changeRun() {{
@@ -1018,8 +1131,22 @@ function changeRun() {{
   setFrame(0);
 }}
 
+function changeProduct() {{
+  selectedProduct = productSelect.value;
+  current = 0;
+  buildHourButtons();
+  refreshHourAvailability();
+  setFrame(0);
+}}
+
+function changeDomain() {{
+  selectedDomain = domainSelect.value;
+  refreshHourAvailability();
+  setFrame(current);
+}}
+
 function latestRun() {{
-  selectedRun = runs[0];
+  selectedRun = runs.length > 0 ? runs[0] : "";
   runSelect.value = selectedRun;
   current = 0;
   buildHourButtons();
@@ -1042,100 +1169,33 @@ function togglePlay() {{
   }}
 }}
 
-function buildHourButtons() {{
-  tiles.innerHTML = "";
-
-  maxFhr = getMaxFhrForRun(selectedRun);
-  slider.max = maxFhr;
-
-  if (current > maxFhr) {{
-    current = maxFhr;
-  }}
-
-  for (let i = 0; i <= maxFhr; i++) {{
-    const btn = document.createElement("button");
-    btn.className = "frame";
-    btn.innerText = fhrName(i);
-    btn.id = `btn${{i}}`;
-    btn.onclick = () => setFrame(i);
-    tiles.appendChild(btn);
-  }}
-}}
-
-function prettyRun(run) {{
-  const parts = run.split("_");
-
-  const ymd = parts[0];
-  const hour = parts[1].replace("z", "");
-
-  const year  = ymd.slice(0,4);
-  const month = ymd.slice(4,6);
-  const day   = ymd.slice(6,8);
-
-  return `Tue ${{year}}-${{month}}-${{day}} ${{hour}}z`;
-}}
+Object.entries(models).forEach(([key, label]) => {{
+  const option = document.createElement("option");
+  option.value = key;
+  option.text = label;
+  modelSelect.appendChild(option);
+}});
 
 runs.forEach(run => {{
   const option = document.createElement("option");
-
   option.value = run;
   option.text = prettyRun(run);
-
   runSelect.appendChild(option);
 }});
+
 Object.entries(products).forEach(([key, label]) => {{
   const option = document.createElement("option");
-
   option.value = key;
   option.text = label;
-
   productSelect.appendChild(option);
 }});
 
 Object.entries(domains).forEach(([key, label]) => {{
   const option = document.createElement("option");
-
   option.value = key;
   option.text = label;
-
   domainSelect.appendChild(option);
 }});
-domainSelect.value = selectedDomain;
-
-function changeDomain() {{
-  selectedDomain = domainSelect.value;
-  setFrame(current);
-}}
-function changeProduct() {{
-  selectedProduct = productSelect.value;
-  refreshHourAvailability();
-  setFrame(current);
-}}
-function refreshHourAvailability() {{
-  for (let i = 0; i <= maxFhr; i++) {{
-
-    const btn = document.getElementById(`btn${{i}}`);
-
-    if (!btn) continue;
-
-    btn.classList.remove("available", "missing");
-    btn.classList.add("missing");
-
-    const testImg = new Image();
-
-    testImg.onload = () => {{
-      btn.classList.remove("missing");
-      btn.classList.add("available");
-    }};
-
-    testImg.onerror = () => {{
-      btn.classList.remove("available");
-      btn.classList.add("missing");
-    }};
-
-    testImg.src = imgSrc(selectedRun, i);
-  }}
-}}
 
 slider.oninput = () => setFrame(slider.value);
 
@@ -1150,10 +1210,11 @@ document.addEventListener("keydown", function(e) {{
   }}
 }});
 
+modelSelect.value = selectedModel;
 runSelect.value = selectedRun;
 productSelect.value = selectedProduct;
-domainSelect.value = selectedDomain || "regional";
-selectedDomain = domainSelect.value;
+domainSelect.value = selectedDomain;
+
 buildHourButtons();
 refreshHourAvailability();
 setFrame(0);
@@ -1161,27 +1222,6 @@ setFrame(0);
 </body>
 </html>
 """)
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
