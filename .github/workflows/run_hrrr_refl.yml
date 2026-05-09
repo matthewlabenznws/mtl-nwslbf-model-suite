@@ -37,7 +37,8 @@ jobs:
 
       - name: Run HRRR Reflectivity/UH
         run: |
-          python hrrr_lbf.py
+         python hrrr_lbf.py
+         python build_index.py
 
       - name: Deploy site
         uses: peaceiris/actions-gh-pages@v3
