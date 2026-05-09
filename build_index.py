@@ -265,10 +265,16 @@ function imgSrc(run, fhr) {{
 
   if (selectedModel === "hrrr" && selectedProduct === "refl_uh") {{
     filename = `hrrr_lbf_f${{fhrName(fhr)}}.png`;
+
   }} else if (selectedModel === "hrrr" && selectedProduct === "hail_swath") {{
     filename = `hrrr_hail_f${{fhrName(fhr)}}.png`;
+
   }} else if (selectedModel === "rrfs" && selectedProduct === "refl_uh") {{
     filename = `rrfs_lbf_f${{fhrName(fhr)}}.png`;
+
+  }} else if (selectedModel === "rrfs" && selectedProduct === "hail_swath") {{
+    filename = `rrfs_hail_f${{fhrName(fhr)}}.png`;
+
   }} else {{
     return "";
   }}
