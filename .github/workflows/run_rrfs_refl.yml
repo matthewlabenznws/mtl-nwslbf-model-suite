@@ -38,6 +38,7 @@ jobs:
       - name: Run RRFS Reflectivity/UH
         run: |
           python rrfs_lbf.py
+          python build_index.py
 
       - name: Deploy site
         uses: peaceiris/actions-gh-pages@v3
