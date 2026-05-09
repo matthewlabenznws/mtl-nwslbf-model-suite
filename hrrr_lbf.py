@@ -766,7 +766,32 @@ for old_run in all_runs[6:]:
     import shutil
     shutil.rmtree(old_path, ignore_errors=True)
 
-runs_js = ",\n  ".join([f'"{r}"' for r in keep_runs])
+def get_runs_for_product(model, product, keep=6):
+    runs_dir = os.path.join("site", "runs", model, product)
+    os.makedirs(runs_dir, exist_ok=True)
+
+    runs = sorted(
+        [
+            d for d in os.listdir(runs_dir)
+            if os.path.isdir(os.path.join(runs_dir, d))
+        ],
+        reverse=True
+    )
+
+    return runs[:keep]
+
+
+hrrr_runs = get_runs_for_product("hrrr", "refl_uh", keep=6)
+rrfs_runs = get_runs_for_product("rrfs", "refl_uh", keep=6)
+
+if cycle_str not in hrrr_runs:
+    hrrr_runs = [cycle_str] + hrrr_runs
+
+hrrr_runs = hrrr_runs[:6]
+rrfs_runs = rrfs_runs[:6]
+
+hrrr_runs_js = ",\n    ".join([f'"{r}"' for r in hrrr_runs])
+rrfs_runs_js = ",\n    ".join([f'"{r}"' for r in rrfs_runs])
 os.makedirs("site", exist_ok=True)
 
 index_path = os.path.join("site", "index.html")
@@ -937,9 +962,14 @@ with open(index_path, "w") as f:
   <div class="hint">Use ←/→ arrow keys or forecast-hour buttons to step through frames.</div>
 
 <script>
-const runs = [
-  {runs_js}
-];
+const runsByModel = {{
+  "hrrr": [
+    {hrrr_runs_js}
+  ],
+  "rrfs": [
+    {rrfs_runs_js}
+  ]
+}};
 
 const models = {{
   "hrrr": "HRRR",
@@ -1116,6 +1146,7 @@ function refreshHourAvailability() {{
 function changeModel() {{
   selectedModel = modelSelect.value;
   current = 0;
+  populateRunDropdown();
   buildHourButtons();
   refreshHourAvailability();
   setFrame(0);
@@ -1174,12 +1205,21 @@ Object.entries(models).forEach(([key, label]) => {{
   modelSelect.appendChild(option);
 }});
 
-runs.forEach(run => {{
-  const option = document.createElement("option");
-  option.value = run;
-  option.text = prettyRun(run);
-  runSelect.appendChild(option);
-}});
+function populateRunDropdown() {{
+  runSelect.innerHTML = "";
+
+  const modelRuns = runsByModel[selectedModel] || [];
+
+  modelRuns.forEach(run => {{
+    const option = document.createElement("option");
+    option.value = run;
+    option.text = prettyRun(run);
+    runSelect.appendChild(option);
+  }});
+
+  selectedRun = modelRuns.length > 0 ? modelRuns[0] : "";
+  runSelect.value = selectedRun;
+}}
 
 Object.entries(products).forEach(([key, label]) => {{
   const option = document.createElement("option");
@@ -1212,7 +1252,7 @@ modelSelect.value = selectedModel;
 runSelect.value = selectedRun;
 productSelect.value = selectedProduct;
 domainSelect.value = selectedDomain;
-
+populateRunDropdown();
 buildHourButtons();
 refreshHourAvailability();
 setFrame(0);
