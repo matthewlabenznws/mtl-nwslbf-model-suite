@@ -38,6 +38,7 @@ jobs:
       - name: Run RRFS Hail Swath
         run: |
           python rrfs_hail_swath.py
+          python cleanup_site_runs.py
           python build_index.py
 
       - name: Deploy site
