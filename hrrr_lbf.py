@@ -812,36 +812,30 @@ def plot_domain_from_fields(fields, domain_key, cfg, fhr):
 
         if os.path.exists(LOGO_PATH):
 
-           bbox = ax.get_position()
-
-           logo_left   = bbox.x1 - 0.12
-           logo_bottom = bbox.y1 - 0.10
-           logo_width  = 0.10
-           logo_height = 0.10
-
            logo = mpimg.imread(LOGO_PATH)
 
-           logo_ax = fig.add_axes(
-           [logo_left, logo_bottom, logo_width, logo_height],
-           zorder=50
-           )
-
-           logo_ax.imshow(logo)
-           logo_ax.axis("off")
+           ax.imshow(
+            logo,
+            extent=[0.82, 0.985, 0.84, 0.995],
+            transform=ax.transAxes,
+            zorder=50,
+            aspect="auto"
+            )
 
         ax.text(
-         0.88,
-         0.965,
-        "NWS North Platte, NE",
-         transform=ax.transAxes,
-         ha="center",
-         va="top",
-         fontsize=10,
-         fontweight="bold",
-         color="black",
-         zorder=51,
-         path_effects=[pe.withStroke(linewidth=2.5, foreground="white")]
-         )
+       0.902,
+       0.835,
+       "NWS North Platte, NE",
+        transform=ax.transAxes,
+       ha="center",
+       va="top",
+       fontsize=10,
+       fontweight="bold",
+       color="black",
+       zorder=51,
+       path_effects=[pe.withStroke(linewidth=2.5, foreground="white")]
+       )
+
 
         ax.text(
          0.01,
