@@ -210,6 +210,7 @@ const domains = {{
   "regional": "Default",
   "lbf": "LBF",
   "central_plains": "Central Plains"
+  "spc_severe": "SPC Severe Risk"
 }};
 
 const products = {{
