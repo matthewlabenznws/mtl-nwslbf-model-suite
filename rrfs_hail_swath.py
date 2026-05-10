@@ -799,16 +799,18 @@ def plot_hail_domain(fields, domain_key, cfg, fhr):
         path_effects=[pe.withStroke(linewidth=2.5, foreground="white")]
     )
 
-    fig.text(
-        cfg["credit_xy"][0],
-        cfg["credit_xy"][1],
-        "Plot created by: Matthew Labenz",
-        ha="left",
-        va="bottom",
-        fontsize=9,
-        zorder=32,
-        weight="bold",
-        path_effects=[pe.withStroke(linewidth=2.5, foreground="white")]
+    ax.text(
+    0.01,
+    0.015,
+    "Plot created by: Matthew Labenz",
+    transform=ax.transAxes,
+    ha="left",
+    va="bottom",
+    fontsize=9,
+    weight="bold",
+    color="black",
+    zorder=40,
+    path_effects=[pe.withStroke(linewidth=2.5, foreground="white")]
     )
 
     outname = os.path.join(
