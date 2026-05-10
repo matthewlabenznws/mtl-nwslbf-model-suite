@@ -38,6 +38,7 @@ jobs:
       - name: Run RRFS Reflectivity/UH
         run: |
           python rrfs_lbf.py
+          python cleanup_site_runs.py
           python build_index.py
 
       - name: Deploy site
