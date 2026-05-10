@@ -584,7 +584,9 @@ def subset_2d(lat, lon, extent, *fields):
 # ============================================================
 
 init_dt = find_latest_available_rrfs_cycle()
-cycle_str = init_dt.strftime("%Y%m%d_%Hz")
+run_dt = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+cycle_str = run_dt.strftime("%Y%m%d_%Hz")
+rrfs_init_label = init_dt.strftime("%Y%m%d_%Hz")
 
 if init_dt.hour in [0, 6, 12, 18]:
     MAX_FHR = 60
