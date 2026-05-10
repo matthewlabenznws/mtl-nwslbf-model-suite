@@ -66,9 +66,6 @@ DOMAINS = {
         "extent": [-103.8, -97.0, 40.0, 43.4],
         "title_size": 14,
         "subtitle_size": 11,
-        "logo_ax": [0.78, 0.70, 0.10, 0.10],
-        "office_text_xy": [0.83, 0.71],
-        "credit_xy": [0.13, 0.25],
     },
 
     "regional": {
@@ -76,9 +73,6 @@ DOMAINS = {
         "extent": [-107.5, -93.0, 38.5, 44.2],
         "title_size": 13,
         "subtitle_size": 11,
-        "logo_ax": [0.78, 0.63, 0.10, 0.10],
-        "office_text_xy": [0.83, 0.64],
-        "credit_xy": [0.13, 0.31],
     },
 
     "central_plains": {
@@ -86,130 +80,15 @@ DOMAINS = {
         "extent": [-107.5, -91.0, 34.5, 45.2],
         "title_size": 13,
         "subtitle_size": 11,
-        "logo_ax": [0.78, 0.77, 0.10, 0.10],
-        "office_text_xy": [0.83, 0.78],
-        "credit_xy": [0.13, 0.175],
     },
 }
-SPC_DAY1_CAT_URL = (
-    "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/"
-    "SPC_wx_outlks/MapServer/1/query"
-)
 
-SPC_RISK_ORDER = {
-    "TSTM": 1,
-    "MRGL": 2,
-    "SLGT": 3,
-    "ENH": 4,
-    "MDT": 5,
-    "HIGH": 6,
-}
-
-MIN_SPC_RISK = "SLGT"
-SEVERE_DOMAIN_WIDTH = 14.0
-SEVERE_DOMAIN_HEIGHT = 10.0
-
-
-def fetch_spc_day1_geojson():
-    params = {
-        "where": "1=1",
-        "outFields": "*",
-        "f": "geojson",
-        "returnGeometry": "true",
-        "outSR": "4326",
-    }
-
-    r = requests.get(SPC_DAY1_CAT_URL, params=params, timeout=30)
-    r.raise_for_status()
-    data = r.json()
-
-    if "features" not in data or len(data["features"]) == 0:
-        raise RuntimeError("SPC query returned no features.")
-
-    return gpd.GeoDataFrame.from_features(data["features"], crs="EPSG:4326")
-
-
-def add_spc_severe_domain():
-    try:
-        gdf = fetch_spc_day1_geojson().to_crs(epsg=4326)
-
-        risk_col = None
-        for col in gdf.columns:
-            vals = gdf[col].astype(str).str.upper()
-            if vals.isin(SPC_RISK_ORDER.keys()).any():
-                risk_col = col
-                break
-
-        if risk_col is None:
-            print("SPC severe domain skipped: could not find risk category column.")
-            return
-
-        gdf["risk"] = gdf[risk_col].astype(str).str.upper()
-        gdf["risk_rank"] = gdf["risk"].map(SPC_RISK_ORDER)
-
-        severe = gdf[gdf["risk_rank"] >= SPC_RISK_ORDER[MIN_SPC_RISK]].copy()
-
-        if severe.empty:
-            print("SPC severe domain skipped: no SLGT+ risk found.")
-            return
-
-        highest_rank = severe["risk_rank"].max()
-        highest = severe[severe["risk_rank"] == highest_rank].copy()
-
-        highest_proj = highest.to_crs(epsg=5070)
-        highest["_area"] = highest_proj.geometry.area.values
-        main_poly = highest.loc[highest["_area"].idxmax()]
-
-        highest_label = main_poly["risk"]
-
-        main_gdf = gpd.GeoDataFrame(
-            [main_poly],
-            geometry="geometry",
-            crs="EPSG:4326"
-        )
-
-        centroid_proj = main_gdf.to_crs(epsg=5070).geometry.centroid
-        centroid_ll = gpd.GeoSeries(
-            centroid_proj,
-            crs="EPSG:5070"
-        ).to_crs(epsg=4326).iloc[0]
-
-        center_lon = centroid_ll.x
-        center_lat = centroid_ll.y
-
-        extent = [
-            center_lon - SEVERE_DOMAIN_WIDTH / 2,
-            center_lon + SEVERE_DOMAIN_WIDTH / 2,
-            center_lat - SEVERE_DOMAIN_HEIGHT / 2,
-            center_lat + SEVERE_DOMAIN_HEIGHT / 2,
-        ]
-
-        DOMAINS["spc_severe"] = {
-            "label": f"SPC {highest_label} Risk",
-            "extent": extent,
-            "title_size": 13,
-            "subtitle_size": 11,
-            "logo_ax": [0.78, 0.70, 0.10, 0.10],
-            "office_text_xy": [0.83, 0.71],
-            "credit_xy": [0.13, 0.25],
-            "barb_skip": 22,
-        }
-
-        print(f"Added SPC severe domain: {highest_label}")
-        print(f"SPC severe extent: {extent}")
-
-    except Exception as e:
-        print(f"SPC severe domain skipped due to error: {e}")
-
-
-add_spc_severe_domain()
 
 # ============================================================
 # SETTINGS
 # ============================================================
 
 VALID_RRFS_CYCLES = list(range(24))
-
 
 START_FHR = 1
 CYCLE_DELAY_MINUTES = 45
@@ -269,9 +148,6 @@ def get_lat_lon(da):
     lat = np.squeeze(lat)
     lon = np.squeeze(lon)
 
-    if lat.ndim != 2 or lon.ndim != 2:
-        raise RuntimeError(f"Lat/lon not 2D. lat={lat.shape}, lon={lon.shape}")
-
     return lat, lon
 
 
@@ -282,81 +158,14 @@ def ensure_2d_field(da, label):
     if arr.ndim != 2:
         raise RuntimeError(
             f"{label} is not 2D after squeeze. "
-            f"Shape={arr.shape}, dims={getattr(da, 'dims', None)}"
+            f"Shape={arr.shape}"
         )
 
     return arr
 
 
 # ============================================================
-# SHAPEFILE HELPERS
-# ============================================================
-
-def add_shapefile_outline(ax, shp_path, edgecolor="k", linewidth=1.2, zorder=6):
-    if not os.path.exists(shp_path):
-        print("Missing shapefile:", shp_path)
-        return
-
-    gdf = gpd.read_file(shp_path).to_crs(epsg=4326)
-    gdf = gdf.cx[LON_MIN - 1:LON_MAX + 1, LAT_MIN - 1:LAT_MAX + 1]
-
-    ax.add_geometries(
-        gdf.geometry,
-        crs=ccrs.PlateCarree(),
-        facecolor="none",
-        edgecolor=edgecolor,
-        linewidth=linewidth,
-        zorder=zorder,
-    )
-
-
-def get_lbf_cwa_geom(cwa_shp_path):
-    if not os.path.exists(cwa_shp_path):
-        print("Missing LBF CWA shapefile:", cwa_shp_path)
-        return None
-
-    reader = shpreader.Reader(cwa_shp_path)
-    recs = list(reader.records())
-
-    geoms = [
-        r.geometry for r in recs
-        if str(r.attributes.get("CWA", "")).upper() == "LBF"
-        or str(r.attributes.get("WFO", "")).upper() == "LBF"
-    ]
-
-    if not geoms:
-        geoms = [r.geometry for r in recs]
-
-    return unary_union(geoms)
-
-
-def add_counties_clipped_to_cwa(ax, counties_shp_path, cwa_geom, lw=1.0, color="black", zorder=6):
-    if cwa_geom is None or not os.path.exists(counties_shp_path):
-        return
-
-    reader = shpreader.Reader(counties_shp_path)
-    cwa_p = prep(cwa_geom)
-    clipped = []
-
-    for r in reader.records():
-        g = r.geometry
-        if cwa_p.intersects(g):
-            inter = g.intersection(cwa_geom)
-            if not inter.is_empty:
-                clipped.append(inter)
-
-    ax.add_geometries(
-        clipped,
-        crs=ccrs.PlateCarree(),
-        facecolor="none",
-        edgecolor=color,
-        linewidth=lw,
-        zorder=zorder,
-    )
-
-
-# ============================================================
-# RRFS PUBLIC URL / IDX BYTE-RANGE SUBSETTING
+# RRFS URLS
 # ============================================================
 
 def rrfs_public_grib_url(init_dt, fhr, product="2dfld"):
@@ -370,7 +179,7 @@ def rrfs_public_grib_url(init_dt, fhr, product="2dfld"):
 
     return (
         f"https://noaa-rrfs-pds.s3.amazonaws.com/"
-        f"rrfs_public/rrfs.{ymd}/{hh}/{fname}"
+        f"rrfs_a/rrfs.{ymd}/{hh}/{fname}"
     )
 
 
@@ -396,12 +205,15 @@ def find_latest_available_rrfs_cycle(max_back_hours=96):
         test_url = rrfs_public_grib_url(dt, 1, product="2dfld") + ".idx"
 
         if url_exists(test_url):
-            print(f"Latest RRFS public cycle found: {dt:%Y%m%d} {dt:%HZ}")
-            print("Matched IDX:", test_url)
+            print(f"Latest RRFS cycle found: {dt:%Y%m%d} {dt:%HZ}")
             return dt
 
-    raise RuntimeError("Could not find recent RRFS public cycle.")
+    raise RuntimeError("Could not find recent RRFS cycle.")
 
+
+# ============================================================
+# IDX HELPERS
+# ============================================================
 
 def read_idx(idx_url):
     r = requests.get(idx_url, timeout=30)
@@ -418,17 +230,10 @@ def parse_idx_lines(lines):
         if len(parts) < 5:
             continue
 
-        try:
-            msg_num = int(parts[0])
-            start_byte = int(parts[1])
-        except Exception:
-            continue
-
         parsed.append({
-            "i": i,
             "line": line,
-            "msg_num": msg_num,
-            "start": start_byte,
+            "msg_num": int(parts[0]),
+            "start": int(parts[1]),
         })
 
     for j in range(len(parsed)):
@@ -442,32 +247,20 @@ def parse_idx_lines(lines):
 
 def find_idx_match(parsed, all_terms, label):
     all_terms_lower = [t.lower() for t in all_terms]
-    matches = []
 
     for item in parsed:
         line_lower = item["line"].lower()
 
         if all(term in line_lower for term in all_terms_lower):
-            matches.append(item)
+            print(f"Matched {label}:")
+            print(item["line"])
+            return item
 
-    if not matches:
-        sample = "\n".join([p["line"] for p in parsed[:100]])
-        raise RuntimeError(
-            f"Could not find {label} in IDX using terms {all_terms}.\n"
-            f"First 100 IDX lines:\n{sample}"
-        )
-
-    match = matches[0]
-
-    print(f"Matched {label}:")
-    print(match["line"])
-
-    return match
+    raise RuntimeError(f"Could not find {label}")
 
 
 def download_byte_range(grib_url, start, end, outpath):
-    if os.path.exists(outpath) and os.path.getsize(outpath) > 0:
-        print("Using cached subset:", outpath)
+    if os.path.exists(outpath):
         return outpath
 
     headers = {}
@@ -476,8 +269,6 @@ def download_byte_range(grib_url, start, end, outpath):
         headers["Range"] = f"bytes={start}-"
     else:
         headers["Range"] = f"bytes={start}-{end}"
-
-    print("Downloading byte range:", headers["Range"])
 
     r = requests.get(grib_url, headers=headers, stream=True, timeout=120)
     r.raise_for_status()
@@ -490,23 +281,16 @@ def download_byte_range(grib_url, start, end, outpath):
     return outpath
 
 
-def open_subset_grib(path, label):
+def open_subset_grib(path):
     ds = xr.open_dataset(
         path,
         engine="cfgrib",
         backend_kwargs={"indexpath": ""}
     )
 
-    if len(ds.data_vars) == 0:
-        raise RuntimeError(f"No variables found in subset for {label}")
-
     var = list(ds.data_vars)[0]
-    da = ds[var]
 
-    print(f"Opened {label}: var={var}, dims={da.dims}, shape={da.shape}")
-    print("Attrs:", da.attrs)
-
-    return da
+    return ds[var]
 
 
 def rrfs_idx_field(init_dt, fhr, term_sets, label, product="2dfld"):
@@ -516,17 +300,12 @@ def rrfs_idx_field(init_dt, fhr, term_sets, label, product="2dfld"):
     lines = read_idx(idx_url)
     parsed = parse_idx_lines(lines)
 
-    last_error = None
-
     for terms in term_sets:
         try:
             match = find_idx_match(parsed, terms, label)
 
-            safe_label = re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_")
-
             outname = (
-                f"rrfs_{product}_{init_dt:%Y%m%d_%H}z_f{fhr:03d}_"
-                f"{safe_label}_{match['msg_num']}.grib2"
+                f"rrfs_{init_dt:%Y%m%d_%H}_f{fhr:03d}_{label}.grib2"
             )
 
             outpath = os.path.join(DATA_DIR, outname)
@@ -538,54 +317,21 @@ def rrfs_idx_field(init_dt, fhr, term_sets, label, product="2dfld"):
                 outpath
             )
 
-            return open_subset_grib(outpath, label)
+            return open_subset_grib(outpath)
 
-        except Exception as e:
-            last_error = e
+        except Exception:
+            pass
 
-    raise RuntimeError(f"Could not open {label}. Last error: {last_error}")
-
-
-# ============================================================
-# SPATIAL HELPERS
-# ============================================================
-
-def subset_2d(lat, lon, extent, *fields):
-    lon_min, lon_max, lat_min, lat_max = extent
-
-    mask = (
-        np.isfinite(lat) &
-        np.isfinite(lon) &
-        (lon >= lon_min) &
-        (lon <= lon_max) &
-        (lat >= lat_min) &
-        (lat <= lat_max)
-    )
-
-    if not np.any(mask):
-        raise RuntimeError("No grid points found inside selected domain.")
-
-    iy, ix = np.where(mask)
-
-    iy0 = max(iy.min() - 2, 0)
-    iy1 = min(iy.max() + 3, lat.shape[0])
-
-    ix0 = max(ix.min() - 2, 0)
-    ix1 = min(ix.max() + 3, lon.shape[1])
-
-    return (
-        lat[iy0:iy1, ix0:ix1],
-        lon[iy0:iy1, ix0:ix1],
-        [f[iy0:iy1, ix0:ix1] for f in fields]
-    )
+    raise RuntimeError(f"Could not open {label}")
 
 
 # ============================================================
 # FIND RRFS CYCLE
 # ============================================================
+
 init_dt = find_latest_available_rrfs_cycle()
+
 cycle_str = init_dt.strftime("%Y%m%d_%Hz")
-#rrfs_init_label = init_dt.strftime("%Y%m%d_%Hz")
 
 if init_dt.hour in [0, 6, 12, 18]:
     MAX_FHR = 60
@@ -598,10 +344,6 @@ os.makedirs(OUTDIR, exist_ok=True)
 fhrs = range(START_FHR, MAX_FHR + 1)
 
 print("Using RRFS init:", init_dt.strftime("%Y-%m-%d %HZ"))
-print("Forecast hours:", list(fhrs))
-print("Output directory:", OUTDIR)
-
-lbf_geom = get_lbf_cwa_geom(LBF_CWA_SHP)
 
 
 # ============================================================
@@ -609,9 +351,6 @@ lbf_geom = get_lbf_cwa_geom(LBF_CWA_SHP)
 # ============================================================
 
 def load_rrfs_hail_once(fhr):
-    print("\n" + "=" * 70)
-    print(f"Loading RRFS hail | Init {init_dt:%Y-%m-%d %HZ} | F{fhr:03d}")
-    print("=" * 70)
 
     hail_da = rrfs_idx_field(
         init_dt,
@@ -620,21 +359,16 @@ def load_rrfs_hail_once(fhr):
             ["HAIL", "surface"],
             ["HAIL"],
         ],
-        "surface hail",
+        "surface_hail",
         product="2dfld"
     )
 
     lat, lon = get_lat_lon(hail_da)
+
     hail = ensure_2d_field(hail_da, "surface hail")
 
-    finite_max = np.nanmax(hail)
-    print(f"Raw hail max: {finite_max:.4f}")
-
-    if finite_max < 0.25:
-        print("Assuming hail units are meters. Converting to inches.")
+    if np.nanmax(hail) < 0.25:
         hail = hail * 39.3701
-    else:
-        print("Assuming hail units are already inches or inch-like.")
 
     hail = np.where(hail >= 0.05, hail, np.nan)
 
@@ -646,28 +380,48 @@ def load_rrfs_hail_once(fhr):
 
 
 # ============================================================
-# PLOT HAIL DOMAIN
+# SPATIAL HELPERS
+# ============================================================
+
+def subset_2d(lat, lon, extent, field):
+
+    lon_min, lon_max, lat_min, lat_max = extent
+
+    mask = (
+        (lon >= lon_min) &
+        (lon <= lon_max) &
+        (lat >= lat_min) &
+        (lat <= lat_max)
+    )
+
+    iy, ix = np.where(mask)
+
+    iy0 = max(iy.min() - 2, 0)
+    iy1 = min(iy.max() + 3, lat.shape[0])
+
+    ix0 = max(ix.min() - 2, 0)
+    ix1 = min(ix.max() + 3, lon.shape[1])
+
+    return (
+        lat[iy0:iy1, ix0:ix1],
+        lon[iy0:iy1, ix0:ix1],
+        field[iy0:iy1, ix0:ix1]
+    )
+
+
+# ============================================================
+# PLOT
 # ============================================================
 
 def plot_hail_domain(fields, domain_key, cfg, fhr):
-    global LON_MIN, LON_MAX, LAT_MIN, LAT_MAX
-
-    LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = cfg["extent"]
 
     extent = cfg["extent"]
 
-    domain_outdir = os.path.join(OUTDIR, domain_key)
-    os.makedirs(domain_outdir, exist_ok=True)
-
-    lat = fields["lat"]
-    lon = fields["lon"]
-    hail = fields["hail"]
-
-    lat_sub, lon_sub, [hail_sub] = subset_2d(
-        lat,
-        lon,
+    lat_sub, lon_sub, hail_sub = subset_2d(
+        fields["lat"],
+        fields["lon"],
         extent,
-        hail
+        fields["hail"]
     )
 
     hail_plot = gaussian_filter(
@@ -677,13 +431,13 @@ def plot_hail_domain(fields, domain_key, cfg, fhr):
 
     hail_plot = np.where(hail_plot >= 0.05, hail_plot, np.nan)
 
-    plt.close("all")
-
     fig = plt.figure(figsize=(14, 10))
+
     ax = plt.axes(projection=ccrs.PlateCarree())
 
-    ax.set_extent(extent, crs=ccrs.PlateCarree())
-    ax.add_feature(cfeature.LAND, facecolor="white", zorder=0)
+    ax.set_extent(extent)
+
+    ax.add_feature(cfeature.LAND, facecolor="white")
 
     pm = ax.contourf(
         lon_sub,
@@ -693,71 +447,17 @@ def plot_hail_domain(fields, domain_key, cfg, fhr):
         cmap=hail_cmap,
         norm=hail_norm,
         extend="max",
-        transform=ccrs.PlateCarree(),
-        zorder=5
+        transform=ccrs.PlateCarree()
     )
-
-    add_shapefile_outline(ax, STATE_SHP, edgecolor="black", linewidth=1.4, zorder=13)
-    add_shapefile_outline(ax, COUNTY_SHP, edgecolor="lightgray", linewidth=0.35, zorder=12)
-
-    if lbf_geom is not None:
-        add_counties_clipped_to_cwa(ax, COUNTY_SHP, lbf_geom, lw=1.0, color="black", zorder=13)
-
-        ax.add_geometries(
-            [lbf_geom],
-            crs=ccrs.PlateCarree(),
-            facecolor="none",
-            edgecolor="black",
-            linewidth=3.5,
-            zorder=14
-        )
-
-        ax.add_geometries(
-            [lbf_geom],
-            crs=ccrs.PlateCarree(),
-            facecolor="none",
-            edgecolor="white",
-            linewidth=1.8,
-            zorder=15
-        )
 
     valid_dt = init_dt + timedelta(hours=fhr)
 
-    main_title = "RRFS | Maximum Surface Hail Swath"
-    valid_title = f"F{fhr:03d} Valid: {valid_dt:%a %Y-%m-%d %HZ}"
-    init_title = f"Init: {init_dt:%a %Y-%m-%d %HZ} RRFS"
-
-    ax.text(
-        0.0,
-        1.042,
-        main_title,
-        transform=ax.transAxes,
-        ha="left",
-        va="bottom",
-        fontsize=cfg["title_size"],
-        fontweight="bold"
-    )
-
-    ax.text(
-        0.0,
-        1.005,
-        valid_title,
-        transform=ax.transAxes,
-        ha="left",
-        va="bottom",
-        fontsize=cfg["subtitle_size"],
-        fontweight="bold"
-    )
-
-    ax.text(
-        1.0,
-        1.005,
-        init_title,
-        transform=ax.transAxes,
-        ha="right",
-        va="bottom",
-        fontsize=cfg["subtitle_size"],
-        fontweight="bold"
+    ax.set_title(
+        f"RRFS Maximum Surface Hail Swath\n"
+        f"Init: {init_dt:%Y-%m-%d %HZ} | "
+        f"Valid: {valid_dt:%Y-%m-%d %HZ}",
+        fontsize=14,
+        weight="bold"
     )
 
     divider = make_axes_locatable(ax)
@@ -772,68 +472,27 @@ def plot_hail_domain(fields, domain_key, cfg, fhr):
     cbar = plt.colorbar(
         pm,
         cax=cax,
-        orientation="horizontal",
-        ticks=[0, 0.50, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0],
-        drawedges=True
+        orientation="horizontal"
     )
 
-    cbar.set_label("Surface Hail Swath (inches)", fontsize=10, weight="bold")
-    cbar.ax.xaxis.set_label_position("top")
-    cbar.ax.tick_params(axis="x", which="both", length=0)
+    cbar.set_label("Surface Hail Swath (inches)")
 
-    if os.path.exists(LOGO_PATH):
-       logo = mpimg.imread(LOGO_PATH)
-
-       logo_ax = ax.inset_axes(
-       [0.82, 0.84, 0.165, 0.155],
-       transform=ax.transAxes,
-       zorder=50
-           )
-
-       logo_ax.imshow(logo)
-       logo_ax.axis("off")
-
-    ax.text(
-        0.902,
-        0.835,
-        "NWS North Platte, NE",
-        transform=ax.transAxes,
-       ha="center",
-       va="top",
-       fontsize=10,
-       fontweight="bold",
-       color="black",
-       zorder=51,
-       path_effects=[pe.withStroke(linewidth=2.5, foreground="white")]
-       )
-
-    ax.text(
-    0.01,
-    0.015,
-    "Plot created by: Matthew Labenz",
-    transform=ax.transAxes,
-    ha="left",
-    va="bottom",
-    fontsize=9,
-    weight="bold",
-    color="black",
-    zorder=40,
-    path_effects=[pe.withStroke(linewidth=2.5, foreground="white")]
-    )
+    outdir = os.path.join(OUTDIR, domain_key)
+    os.makedirs(outdir, exist_ok=True)
 
     outname = os.path.join(
-        domain_outdir,
+        outdir,
         f"rrfs_hail_f{fhr:03d}.png"
     )
 
     plt.savefig(outname, dpi=140, bbox_inches="tight")
-    plt.close(fig)
+    plt.close()
 
     print("Saved:", outname)
 
 
 # ============================================================
-# RUN CUMULATIVE HAIL SWATH LOOP
+# RUN LOOP
 # ============================================================
 
 running_hail = None
@@ -841,7 +500,11 @@ base_lat = None
 base_lon = None
 
 for fhr in fhrs:
+
     try:
+
+        print(f"\nProcessing F{fhr:03d}")
+
         fields = load_rrfs_hail_once(fhr)
 
         if running_hail is None:
@@ -863,4 +526,4 @@ for fhr in fhrs:
     except Exception as e:
         print(f"FAILED F{fhr:03d}: {e}")
 
-print("Done. Images saved to:", OUTDIR)
+print("Done.")
