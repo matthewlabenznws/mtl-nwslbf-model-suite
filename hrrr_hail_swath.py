@@ -90,7 +90,118 @@ DOMAINS = {
         "credit_xy": [0.13, 0.175],
     },
 }
+SPC_DAY1_CAT_URL = (
+    "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/"
+    "SPC_wx_outlks/MapServer/1/query"
+)
 
+SPC_RISK_ORDER = {
+    "TSTM": 1,
+    "MRGL": 2,
+    "SLGT": 3,
+    "ENH": 4,
+    "MDT": 5,
+    "HIGH": 6,
+}
+
+MIN_SPC_RISK = "SLGT"
+SEVERE_DOMAIN_WIDTH = 14.0
+SEVERE_DOMAIN_HEIGHT = 10.0
+
+
+def fetch_spc_day1_geojson():
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson",
+        "returnGeometry": "true",
+        "outSR": "4326",
+    }
+
+    r = requests.get(SPC_DAY1_CAT_URL, params=params, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+
+    if "features" not in data or len(data["features"]) == 0:
+        raise RuntimeError("SPC query returned no features.")
+
+    return gpd.GeoDataFrame.from_features(data["features"], crs="EPSG:4326")
+
+
+def add_spc_severe_domain():
+    try:
+        gdf = fetch_spc_day1_geojson().to_crs(epsg=4326)
+
+        risk_col = None
+        for col in gdf.columns:
+            vals = gdf[col].astype(str).str.upper()
+            if vals.isin(SPC_RISK_ORDER.keys()).any():
+                risk_col = col
+                break
+
+        if risk_col is None:
+            print("SPC severe domain skipped: could not find risk category column.")
+            return
+
+        gdf["risk"] = gdf[risk_col].astype(str).str.upper()
+        gdf["risk_rank"] = gdf["risk"].map(SPC_RISK_ORDER)
+
+        severe = gdf[gdf["risk_rank"] >= SPC_RISK_ORDER[MIN_SPC_RISK]].copy()
+
+        if severe.empty:
+            print("SPC severe domain skipped: no SLGT+ risk found.")
+            return
+
+        highest_rank = severe["risk_rank"].max()
+        highest = severe[severe["risk_rank"] == highest_rank].copy()
+
+        highest_proj = highest.to_crs(epsg=5070)
+        highest["_area"] = highest_proj.geometry.area.values
+        main_poly = highest.loc[highest["_area"].idxmax()]
+
+        highest_label = main_poly["risk"]
+
+        main_gdf = gpd.GeoDataFrame(
+            [main_poly],
+            geometry="geometry",
+            crs="EPSG:4326"
+        )
+
+        centroid_proj = main_gdf.to_crs(epsg=5070).geometry.centroid
+        centroid_ll = gpd.GeoSeries(
+            centroid_proj,
+            crs="EPSG:5070"
+        ).to_crs(epsg=4326).iloc[0]
+
+        center_lon = centroid_ll.x
+        center_lat = centroid_ll.y
+
+        extent = [
+            center_lon - SEVERE_DOMAIN_WIDTH / 2,
+            center_lon + SEVERE_DOMAIN_WIDTH / 2,
+            center_lat - SEVERE_DOMAIN_HEIGHT / 2,
+            center_lat + SEVERE_DOMAIN_HEIGHT / 2,
+        ]
+
+        DOMAINS["spc_severe"] = {
+            "label": f"SPC {highest_label} Risk",
+            "extent": extent,
+            "title_size": 13,
+            "subtitle_size": 11,
+            "logo_ax": [0.78, 0.70, 0.10, 0.10],
+            "office_text_xy": [0.83, 0.71],
+            "credit_xy": [0.13, 0.25],
+            "barb_skip": 22,
+        }
+
+        print(f"Added SPC severe domain: {highest_label}")
+        print(f"SPC severe extent: {extent}")
+
+    except Exception as e:
+        print(f"SPC severe domain skipped due to error: {e}")
+
+
+add_spc_severe_domain()
 
 STATIONS = {
     "Gordon":       (-102.2038, 42.8061),
@@ -479,8 +590,7 @@ def plot_hail_domain(fields, domain_key, cfg, fhr):
 
     init_dt = datetime.strptime(f"{cycle_date}{cycle_hour:02d}", "%Y%m%d%H")
     valid_dt = init_dt + timedelta(hours=fhr)
-
-    main_title = f"HRRR | {cfg['label']} | Maximum Surface Hail Swath"
+    main_title = "RRFS | Maximum Surface Hail Swath"
     valid_title = f"F{fhr:03d} Valid: {valid_dt:%a %Y-%m-%d %Hz}"
     init_title = f"Init: {init_dt:%a %Y-%m-%d %Hz} HRRR"
 
@@ -550,16 +660,18 @@ def plot_hail_domain(fields, domain_key, cfg, fhr):
         path_effects=[pe.withStroke(linewidth=2.5, foreground="white")]
     )
 
-    fig.text(
-        cfg["credit_xy"][0],
-        cfg["credit_xy"][1],
-        "Plot created by: Matthew Labenz",
-        ha="left",
-        va="bottom",
-        fontsize=9,
-        zorder=32,
-        weight="bold",
-        path_effects=[pe.withStroke(linewidth=2.5, foreground="white")]
+    ax.text(
+    0.01,
+    0.015,
+    "Plot created by: Matthew Labenz",
+    transform=ax.transAxes,
+    ha="left",
+    va="bottom",
+    fontsize=9,
+    weight="bold",
+    color="black",
+    zorder=40,
+    path_effects=[pe.withStroke(linewidth=2.5, foreground="white")]
     )
 
     outname = os.path.join(
