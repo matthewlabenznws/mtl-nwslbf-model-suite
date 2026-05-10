@@ -196,7 +196,8 @@ add_spc_severe_domain()
 # SETTINGS
 # ============================================================
 
-VALID_RRFS_CYCLES = [0, 3, 6, 9, 12, 15, 18, 21]
+VALID_RRFS_CYCLES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 
+                     21, 22, 23]
 
 START_FHR = 1
 CYCLE_DELAY_MINUTES = 75
@@ -610,7 +611,9 @@ def interp_to_target_grid(src_lat, src_lon, src_field, tgt_lat, tgt_lon):
 # ============================================================
 
 init_dt = find_latest_available_rrfs_cycle()
-cycle_str = init_dt.strftime("%Y%m%d_%Hz")
+run_dt = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+cycle_str = run_dt.strftime("%Y%m%d_%Hz")
+rrfs_init_label = init_dt.strftime("%Y%m%d_%Hz")
 
 if init_dt.hour in [0, 6, 12, 18]:
     MAX_FHR = 60
