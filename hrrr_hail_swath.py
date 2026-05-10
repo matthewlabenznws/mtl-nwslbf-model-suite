@@ -590,7 +590,7 @@ def plot_hail_domain(fields, domain_key, cfg, fhr):
 
     init_dt = datetime.strptime(f"{cycle_date}{cycle_hour:02d}", "%Y%m%d%H")
     valid_dt = init_dt + timedelta(hours=fhr)
-    main_title = "RRFS | Maximum Surface Hail Swath"
+    main_title = "HRRR | Maximum Surface Hail Swath"
     valid_title = f"F{fhr:03d} Valid: {valid_dt:%a %Y-%m-%d %Hz}"
     init_title = f"Init: {init_dt:%a %Y-%m-%d %Hz} HRRR"
 
