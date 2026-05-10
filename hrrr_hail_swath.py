@@ -653,7 +653,7 @@ def plot_hail_domain(fields, domain_key, cfg, fhr):
        logo_ax.imshow(logo)
        logo_ax.axis("off")
 
-     ax.text(
+    ax.text(
         0.902,
         0.835,
         "NWS North Platte, NE",
