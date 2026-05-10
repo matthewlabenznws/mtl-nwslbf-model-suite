@@ -160,19 +160,35 @@
   <div class="hint">Use ←/→ arrow keys or forecast-hour buttons to step through frames.</div>
 
 <script>
-const runsByModel = {
-  "hrrr": [
-    "20260510_21z",
-    "20260510_20z",
-    "20260510_19z",
-    "20260510_17z"
-  ],
-  "rrfs": [
-    "20260510_21z",
-    "20260510_18z",
-    "20260510_12z",
-    "20260510_09z"
-  ]
+const runsByModelProduct = {
+  "hrrr": {
+    "refl_uh": [
+      "20260510_21z",
+      "20260510_20z",
+      "20260510_19z",
+      "20260510_17z"
+    ],
+    "hail_swath": [
+      "20260510_20z",
+      "20260510_19z",
+      "20260510_18z",
+      "20260510_15z"
+    ]
+  },
+  "rrfs": {
+    "refl_uh": [
+      "20260510_21z",
+      "20260510_18z",
+      "20260510_12z",
+      "20260510_09z"
+    ],
+    "hail_swath": [
+      "20260510_21z",
+      "20260510_20z",
+      "20260510_19z",
+      "20260510_18z"
+    ]
+  }
 };
 
 const models = {
@@ -195,7 +211,7 @@ const products = {
 let selectedModel = "hrrr";
 let selectedProduct = "refl_uh";
 let selectedDomain = "regional";
-let selectedRun = (runsByModel[selectedModel] || []).length > 0 ? runsByModel[selectedModel][0] : "";
+let selectedRun = "";
 let current = 0;
 let playing = false;
 let timer = null;
@@ -212,6 +228,10 @@ const domainSelect = document.getElementById("domainSelect");
 
 function fhrName(fhr) {
   return String(fhr).padStart(3, "0");
+}
+
+function getRuns() {
+  return runsByModelProduct[selectedModel]?.[selectedProduct] || [];
 }
 
 function getMaxFhrForRun(model, run) {
@@ -233,28 +253,32 @@ function getMaxFhrForRun(model, run) {
   return 18;
 }
 
-let maxFhr = getMaxFhrForRun(selectedModel, selectedRun);
+let maxFhr = 18;
 
 function imgSrc(run, fhr) {
   let filename = "";
 
+  if (!run) return "";
+
   if (selectedModel === "hrrr" && selectedProduct === "refl_uh") {
-    filename = `hrrr_lbf_f${fhrName(fhr)}.png`;
-
+    filename = "hrrr_lbf_f" + fhrName(fhr) + ".png";
   } else if (selectedModel === "hrrr" && selectedProduct === "hail_swath") {
-    filename = `hrrr_hail_f${fhrName(fhr)}.png`;
-
+    filename = "hrrr_hail_f" + fhrName(fhr) + ".png";
   } else if (selectedModel === "rrfs" && selectedProduct === "refl_uh") {
-    filename = `rrfs_lbf_f${fhrName(fhr)}.png`;
-
+    filename = "rrfs_lbf_f" + fhrName(fhr) + ".png";
   } else if (selectedModel === "rrfs" && selectedProduct === "hail_swath") {
-    filename = `rrfs_hail_f${fhrName(fhr)}.png`;
-
+    filename = "rrfs_hail_f" + fhrName(fhr) + ".png";
   } else {
     return "";
   }
 
-  return `runs/${selectedModel}/${selectedProduct}/${run}/${selectedDomain}/${filename}?t=${Date.now()}`;
+  return "runs/" +
+    selectedModel + "/" +
+    selectedProduct + "/" +
+    run + "/" +
+    selectedDomain + "/" +
+    filename +
+    "?t=" + Date.now();
 }
 
 function prettyRun(run) {
@@ -264,39 +288,28 @@ function prettyRun(run) {
   const ymd = parts[0];
   const hour = parts[1].replace("z", "");
 
-  const year = ymd.slice(0, 4);
-  const month = ymd.slice(4, 6);
-  const day = ymd.slice(6, 8);
-
-  return `${year}-${month}-${day} ${hour}z`;
+  return (
+    ymd.slice(0, 4) + "-" +
+    ymd.slice(4, 6) + "-" +
+    ymd.slice(6, 8) + " " +
+    hour + "z"
+  );
 }
 
-function setFrame(fhr) {
-  current = Math.max(0, Math.min(maxFhr, Number(fhr)));
-  slider.value = current;
+function populateRunDropdown() {
+  runSelect.innerHTML = "";
 
-  const src = imgSrc(selectedRun, current);
-  if (src) plot.src = src;
+  const runs = getRuns();
 
-  fhrLabel.innerHTML = fhrName(current);
-
-  document.querySelectorAll("button.frame").forEach(btn => btn.classList.remove("active"));
-  const active = document.getElementById(`btn${current}`);
-  if (active) active.classList.add("active");
-
-  preloadNeighbors(current);
-}
-
-function preloadNeighbors(fhr) {
-  [fhr + 1, fhr + 2, fhr - 1].forEach(n => {
-    if (n >= 0 && n <= maxFhr) {
-      const src = imgSrc(selectedRun, n);
-      if (src) {
-        const img = new Image();
-        img.src = src;
-      }
-    }
+  runs.forEach(function(run) {
+    const option = document.createElement("option");
+    option.value = run;
+    option.text = prettyRun(run);
+    runSelect.appendChild(option);
   });
+
+  selectedRun = runs[0] || "";
+  runSelect.value = selectedRun;
 }
 
 function buildHourButtons() {
@@ -311,15 +324,47 @@ function buildHourButtons() {
     const btn = document.createElement("button");
     btn.className = "frame missing";
     btn.innerText = fhrName(i);
-    btn.id = `btn${i}`;
-    btn.onclick = () => setFrame(i);
+    btn.id = "btn" + i;
+    btn.onclick = function() {
+      setFrame(i);
+    };
     tiles.appendChild(btn);
   }
 }
 
+function setFrame(fhr) {
+  current = Math.max(0, Math.min(maxFhr, Number(fhr)));
+  slider.value = current;
+  fhrLabel.innerHTML = fhrName(current);
+
+  const src = imgSrc(selectedRun, current);
+  if (src) plot.src = src;
+
+  document.querySelectorAll("button.frame").forEach(function(btn) {
+    btn.classList.remove("active");
+  });
+
+  const active = document.getElementById("btn" + current);
+  if (active) active.classList.add("active");
+
+  preloadNeighbors(current);
+}
+
+function preloadNeighbors(fhr) {
+  [fhr + 1, fhr + 2, fhr - 1].forEach(function(n) {
+    if (n >= 0 && n <= maxFhr) {
+      const src = imgSrc(selectedRun, n);
+      if (src) {
+        const img = new Image();
+        img.src = src;
+      }
+    }
+  });
+}
+
 function refreshHourAvailability() {
   for (let i = 0; i <= maxFhr; i++) {
-    const btn = document.getElementById(`btn${i}`);
+    const btn = document.getElementById("btn" + i);
     if (!btn) continue;
 
     btn.classList.remove("available", "missing");
@@ -330,12 +375,12 @@ function refreshHourAvailability() {
 
     const testImg = new Image();
 
-    testImg.onload = () => {
+    testImg.onload = function() {
       btn.classList.remove("missing");
       btn.classList.add("available");
     };
 
-    testImg.onerror = () => {
+    testImg.onerror = function() {
       btn.classList.remove("available");
       btn.classList.add("missing");
     };
@@ -344,24 +389,17 @@ function refreshHourAvailability() {
   }
 }
 
-function populateRunDropdown() {
-  runSelect.innerHTML = "";
-
-  const modelRuns = runsByModel[selectedModel] || [];
-
-  modelRuns.forEach(run => {
-    const option = document.createElement("option");
-    option.value = run;
-    option.text = prettyRun(run);
-    runSelect.appendChild(option);
-  });
-
-  selectedRun = modelRuns.length > 0 ? modelRuns[0] : "";
-  runSelect.value = selectedRun;
-}
-
 function changeModel() {
   selectedModel = modelSelect.value;
+  current = 0;
+  populateRunDropdown();
+  buildHourButtons();
+  refreshHourAvailability();
+  setFrame(0);
+}
+
+function changeProduct() {
+  selectedProduct = productSelect.value;
   current = 0;
   populateRunDropdown();
   buildHourButtons();
@@ -377,14 +415,6 @@ function changeRun() {
   setFrame(0);
 }
 
-function changeProduct() {
-  selectedProduct = productSelect.value;
-  current = 0;
-  buildHourButtons();
-  refreshHourAvailability();
-  setFrame(0);
-}
-
 function changeDomain() {
   selectedDomain = domainSelect.value;
   refreshHourAvailability();
@@ -392,8 +422,8 @@ function changeDomain() {
 }
 
 function latestRun() {
-  const modelRuns = runsByModel[selectedModel] || [];
-  selectedRun = modelRuns.length > 0 ? modelRuns[0] : "";
+  const runs = getRuns();
+  selectedRun = runs[0] || "";
   runSelect.value = selectedRun;
   current = 0;
   buildHourButtons();
@@ -406,7 +436,7 @@ function togglePlay() {
 
   if (playing) {
     playBtn.innerHTML = "⏸ Pause";
-    timer = setInterval(() => {
+    timer = setInterval(function() {
       current = current >= maxFhr ? 0 : current + 1;
       setFrame(current);
     }, 650);
@@ -416,28 +446,36 @@ function togglePlay() {
   }
 }
 
-Object.entries(models).forEach(([key, label]) => {
+Object.entries(models).forEach(function(entry) {
+  const key = entry[0];
+  const label = entry[1];
   const option = document.createElement("option");
   option.value = key;
   option.text = label;
   modelSelect.appendChild(option);
 });
 
-Object.entries(products).forEach(([key, label]) => {
+Object.entries(products).forEach(function(entry) {
+  const key = entry[0];
+  const label = entry[1];
   const option = document.createElement("option");
   option.value = key;
   option.text = label;
   productSelect.appendChild(option);
 });
 
-Object.entries(domains).forEach(([key, label]) => {
+Object.entries(domains).forEach(function(entry) {
+  const key = entry[0];
+  const label = entry[1];
   const option = document.createElement("option");
   option.value = key;
   option.text = label;
   domainSelect.appendChild(option);
 });
 
-slider.oninput = () => setFrame(slider.value);
+slider.oninput = function() {
+  setFrame(slider.value);
+};
 
 document.addEventListener("keydown", function(e) {
   if (e.key === "ArrowRight") {
