@@ -38,6 +38,7 @@ jobs:
       - name: Run HRRR Reflectivity/UH
         run: |
          python hrrr_lbf.py
+         python cleanup_site_runs.py
          python build_index.py
 
       - name: Deploy site
