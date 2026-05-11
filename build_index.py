@@ -6,31 +6,6 @@ import os
 
 os.makedirs("site", exist_ok=True)
 
-
-def get_runs_for_product(model, product, keep=4):
-    runs_dir = os.path.join("site", "runs", model, product)
-    os.makedirs(runs_dir, exist_ok=True)
-
-    runs = sorted(
-        [
-            d for d in os.listdir(runs_dir)
-            if os.path.isdir(os.path.join(runs_dir, d))
-        ],
-        reverse=True
-    )
-
-    return runs[:keep]
-
-
-def js_list(runs):
-    return ",\n      ".join([f'"{r}"' for r in runs])
-
-
-hrrr_refl_runs_js = js_list(get_runs_for_product("hrrr", "refl_uh", keep=4))
-hrrr_hail_runs_js = js_list(get_runs_for_product("hrrr", "hail_swath", keep=4))
-rrfs_refl_runs_js = js_list(get_runs_for_product("rrfs", "refl_uh", keep=4))
-rrfs_hail_runs_js = js_list(get_runs_for_product("rrfs", "hail_swath", keep=4))
-
 index_path = os.path.join("site", "index.html")
 
 html = """
@@ -195,22 +170,14 @@ html = """
   <div class="hint">Use ←/→ arrow keys or forecast-hour buttons to step through frames.</div>
 
 <script>
-const runsByModelProduct = {
-  "hrrr": {
-    "refl_uh": [
-      __HRRR_REFL_RUNS__
-    ],
-    "hail_swath": [
-      __HRRR_HAIL_RUNS__
-    ]
+let runsByModelProduct = {
+  hrrr: {
+    refl_uh: [],
+    hail_swath: []
   },
-  "rrfs": {
-    "refl_uh": [
-      __RRFS_REFL_RUNS__
-    ],
-    "hail_swath": [
-      __RRFS_HAIL_RUNS__
-    ]
+  rrfs: {
+    refl_uh: [],
+    hail_swath: []
   }
 };
 
@@ -238,6 +205,7 @@ let selectedRun = "";
 let current = 0;
 let playing = false;
 let timer = null;
+let maxFhr = 18;
 
 const plot = document.getElementById("plot");
 const slider = document.getElementById("slider");
@@ -248,6 +216,30 @@ const modelSelect = document.getElementById("modelSelect");
 const runSelect = document.getElementById("runSelect");
 const productSelect = document.getElementById("productSelect");
 const domainSelect = document.getElementById("domainSelect");
+
+async function loadRunsJson(model, product) {
+  const url = `runs/${model}/${product}/runs.json?t=${Date.now()}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(url);
+
+    const data = await response.json();
+    runsByModelProduct[model][product] = data.runs || [];
+  } catch (err) {
+    console.warn("Could not load runs.json:", url);
+    runsByModelProduct[model][product] = [];
+  }
+}
+
+async function loadAllRuns() {
+  await Promise.all([
+    loadRunsJson("hrrr", "refl_uh"),
+    loadRunsJson("hrrr", "hail_swath"),
+    loadRunsJson("rrfs", "refl_uh"),
+    loadRunsJson("rrfs", "hail_swath")
+  ]);
+}
 
 function fhrName(fhr) {
   return String(fhr).padStart(3, "0");
@@ -275,8 +267,6 @@ function getMaxFhrForRun(model, run) {
 
   return 18;
 }
-
-let maxFhr = 18;
 
 function imgSrc(run, fhr) {
   let filename = "";
@@ -515,19 +505,17 @@ modelSelect.value = selectedModel;
 productSelect.value = selectedProduct;
 domainSelect.value = selectedDomain;
 
-populateRunDropdown();
-buildHourButtons();
-refreshHourAvailability();
-setFrame(0);
+loadAllRuns().then(function() {
+  populateRunDropdown();
+  buildHourButtons();
+  refreshHourAvailability();
+  setFrame(0);
+});
 </script>
 </body>
 </html>
 """
 
-html = html.replace("__HRRR_REFL_RUNS__", hrrr_refl_runs_js)
-html = html.replace("__HRRR_HAIL_RUNS__", hrrr_hail_runs_js)
-html = html.replace("__RRFS_REFL_RUNS__", rrfs_refl_runs_js)
-html = html.replace("__RRFS_HAIL_RUNS__", rrfs_hail_runs_js)
 
 with open(index_path, "w") as f:
     f.write(html)
