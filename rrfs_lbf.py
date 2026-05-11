@@ -1066,7 +1066,8 @@ def plot_domain_from_fields(fields, domain_key, cfg, fhr):
             )
 
         valid_dt = init_dt + timedelta(hours=fhr)
-
+        valid_title = f"F{fhr:03d} Valid: {valid_dt:%a %Y-%m-%d %HZ}"
+        init_title = f"Init: {init_dt:%a %Y-%m-%d %HZ} RRFS"
         main_title = (
             "RRFS | Refl, 2-5km UH > 75, "
             "0-3km UH > 50, θ Cold Pools, 4-6 km SR Winds"
