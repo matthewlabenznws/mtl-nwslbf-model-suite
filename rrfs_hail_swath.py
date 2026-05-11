@@ -724,7 +724,7 @@ def plot_hail_domain(fields, domain_key, cfg, fhr):
 
     main_title = "RRFS | Maximum Surface Hail Swath"
     valid_title = f"F{fhr:03d} Valid: {valid_dt:%a %Y-%m-%d %HZ}"
-    init_title = f"Init: {init_dt:%a %Y-%m-%d %HZ} RRFS_A"
+    init_title = f"Init: {init_dt:%a %Y-%m-%d %HZ} RRFS"
 
     ax.text(
             0.0, 1.042,
