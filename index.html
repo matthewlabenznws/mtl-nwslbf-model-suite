@@ -160,34 +160,14 @@
   <div class="hint">Use ←/→ arrow keys or forecast-hour buttons to step through frames.</div>
 
 <script>
-const runsByModelProduct = {
-  "hrrr": {
-    "refl_uh": [
-      "20260511_13z",
-      "20260511_11z",
-      "20260511_10z",
-      "20260511_08z"
-    ],
-    "hail_swath": [
-      "20260511_13z",
-      "20260511_05z",
-      "20260511_04z",
-      "20260511_03z"
-    ]
+let runsByModelProduct = {
+  hrrr: {
+    refl_uh: [],
+    hail_swath: []
   },
-  "rrfs": {
-    "refl_uh": [
-      "20260511_09z",
-      "20260511_06z",
-      "20260511_03z",
-      "20260511_00z"
-    ],
-    "hail_swath": [
-      "20260511_11z",
-      "20260511_05z",
-      "20260511_03z",
-      "20260510_20z"
-    ]
+  rrfs: {
+    refl_uh: [],
+    hail_swath: []
   }
 };
 
@@ -215,6 +195,7 @@ let selectedRun = "";
 let current = 0;
 let playing = false;
 let timer = null;
+let maxFhr = 18;
 
 const plot = document.getElementById("plot");
 const slider = document.getElementById("slider");
@@ -225,6 +206,30 @@ const modelSelect = document.getElementById("modelSelect");
 const runSelect = document.getElementById("runSelect");
 const productSelect = document.getElementById("productSelect");
 const domainSelect = document.getElementById("domainSelect");
+
+async function loadRunsJson(model, product) {
+  const url = `runs/${model}/${product}/runs.json?t=${Date.now()}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(url);
+
+    const data = await response.json();
+    runsByModelProduct[model][product] = data.runs || [];
+  } catch (err) {
+    console.warn("Could not load runs.json:", url);
+    runsByModelProduct[model][product] = [];
+  }
+}
+
+async function loadAllRuns() {
+  await Promise.all([
+    loadRunsJson("hrrr", "refl_uh"),
+    loadRunsJson("hrrr", "hail_swath"),
+    loadRunsJson("rrfs", "refl_uh"),
+    loadRunsJson("rrfs", "hail_swath")
+  ]);
+}
 
 function fhrName(fhr) {
   return String(fhr).padStart(3, "0");
@@ -252,8 +257,6 @@ function getMaxFhrForRun(model, run) {
 
   return 18;
 }
-
-let maxFhr = 18;
 
 function imgSrc(run, fhr) {
   let filename = "";
@@ -492,10 +495,12 @@ modelSelect.value = selectedModel;
 productSelect.value = selectedProduct;
 domainSelect.value = selectedDomain;
 
-populateRunDropdown();
-buildHourButtons();
-refreshHourAvailability();
-setFrame(0);
+loadAllRuns().then(function() {
+  populateRunDropdown();
+  buildHourButtons();
+  refreshHourAvailability();
+  setFrame(0);
+});
 </script>
 </body>
 </html>
