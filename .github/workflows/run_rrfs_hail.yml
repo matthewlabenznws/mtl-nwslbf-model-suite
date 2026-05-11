@@ -21,11 +21,10 @@ jobs:
           ref: gh-pages
           path: old_site
 
-      - name: Restore previous site
+      - name: Restore previous RRFS hail runs
         run: |
-          mkdir -p site
-          cp -r old_site/* site/ || true
-
+         mkdir -p site/runs/rrfs/hail_swath
+         cp -r old_site/runs/rrfs/hail_swath/* site/runs/rrfs/hail_swath/ || true
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
