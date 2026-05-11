@@ -5,7 +5,10 @@ on:
 
 permissions:
   contents: write
-
+concurrency:
+  group: model-viewer-deploy
+  cancel-in-progress: false
+  
 jobs:
   build:
     runs-on: ubuntu-latest
