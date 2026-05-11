@@ -21,10 +21,10 @@ jobs:
           ref: gh-pages
           path: old_site
 
-      - name: Restore previous site
+      - name: Restore previous RRFS reflectivity runs
         run: |
-          mkdir -p site
-          cp -r old_site/* site/ || true
+         mkdir -p site/runs/rrfs/refl_uh
+         cp -r old_site/runs/rrfs/refl_uh/* site/runs/rrfs/refl_uh/ || true
 
       - name: Set up Python
         uses: actions/setup-python@v5
