@@ -5,10 +5,7 @@ on:
 
 permissions:
   contents: write
-concurrency:
-  group: model-viewer-deploy
-  cancel-in-progress: false
-  
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,7 +21,7 @@ jobs:
           ref: gh-pages
           path: old_site
 
-      - name: Restore previous runs
+      - name: Restore previous site
         run: |
           mkdir -p site
           cp -r old_site/* site/ || true
@@ -41,27 +38,12 @@ jobs:
       - name: Run HRRR Hail Swath
         run: |
           python hrrr_hail_swath.py
-          python cleanup_site_runs.py
-          python build_index.py
-
-      # ADD THIS SECTION HERE
-      - name: Debug hail swath output
-        run: |
-          echo "Hail swath folders:"
-          find site/runs/hrrr/hail_swath -maxdepth 3 -type d | sort
-
-          echo "Hail swath files:"
-          find site/runs/hrrr/hail_swath -type f | sort | tail -50
-
-          echo "Index hail_swath check:"
-          grep -n "hail_swath" site/index.html | head -20 || true
-
-          echo "Index 23z check:"
-          grep -n "20260510_23z" site/index.html || true
+          python cleanup_site_runs.py hrrr hail_swath
+          python write_product_runs_json.py hrrr hail_swath
 
       - name: Deploy site
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
-          keep_files: false
+          keep_files: true
