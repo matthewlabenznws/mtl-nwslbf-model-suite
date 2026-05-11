@@ -40,7 +40,7 @@ jobs:
           python hrrr_lbf.py
           python cleanup_site_runs.py hrrr refl_uh
           python write_product_runs_json.py hrrr refl_uh
-
+          python build_index.py
       - name: Deploy site
         uses: peaceiris/actions-gh-pages@v3
         with:
