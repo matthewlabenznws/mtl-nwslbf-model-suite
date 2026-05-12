@@ -11,11 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Restore existing site from gh-pages
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         continue-on-error: true
         with:
           ref: gh-pages
@@ -26,14 +24,11 @@ jobs:
           mkdir -p site/runs/hrrr/hail_swath
           cp -r old_site/runs/hrrr/hail_swath/* site/runs/hrrr/hail_swath/ || true
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+      - run: pip install -r requirements.txt
 
       - name: Run HRRR Hail Swath
         run: |
@@ -41,9 +36,40 @@ jobs:
           python cleanup_site_runs.py hrrr hail_swath
           python write_product_runs_json.py hrrr hail_swath
 
-      - name: Deploy site
-        uses: peaceiris/actions-gh-pages@v3
+      - uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
-          keep_files: true
+          name: hrrr-hail-swath-output
+          path: site/runs/hrrr/hail_swath
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    concurrency:
+      group: gh-pages-deploy
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hrrr-hail-swath-output
+          path: product-output
+
+      - name: Deploy HRRR hail to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages
+          rm -rf gh-pages-work
+          git worktree add gh-pages-work origin/gh-pages
+
+          mkdir -p gh-pages-work/runs/hrrr
+          rm -rf gh-pages-work/runs/hrrr/hail_swath
+          cp -r product-output gh-pages-work/runs/hrrr/hail_swath
+
+          cd gh-pages-work
+          git add -A runs/hrrr/hail_swath
+          git commit -m "Update HRRR hail swath" || echo "No changes to commit"
+          git push origin HEAD:gh-pages
