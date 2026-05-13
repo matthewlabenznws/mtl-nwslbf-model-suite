@@ -7,6 +7,7 @@ KEEP_COUNTS = {
     ("hrrr", "hail_swath"): 4,
     ("rrfs", "refl_uh"): 4,
     ("rrfs", "hail_swath"): 4,
+    ("refs_mem01", "refl_uh"): 1,
 }
 
 
