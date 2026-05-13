@@ -175,7 +175,13 @@ let runsByModelProduct = {
     refl_uh: [],
     hail_swath: []
   },
+
   rrfs: {
+    refl_uh: [],
+    hail_swath: []
+  },
+
+  refs_mem01: {
     refl_uh: [],
     hail_swath: []
   }
@@ -183,7 +189,8 @@ let runsByModelProduct = {
 
 const models = {
   "hrrr": "HRRR",
-  "rrfs": "RRFS"
+  "rrfs": "RRFS",
+  "refs_mem01": "REFS M01"
 };
 
 const domains = {
@@ -236,8 +243,11 @@ async function loadAllRuns() {
   await Promise.all([
     loadRunsJson("hrrr", "refl_uh"),
     loadRunsJson("hrrr", "hail_swath"),
+
     loadRunsJson("rrfs", "refl_uh"),
-    loadRunsJson("rrfs", "hail_swath")
+    loadRunsJson("rrfs", "hail_swath"),
+
+    loadRunsJson("refs_mem01", "refl_uh")
   ]);
 }
 
@@ -265,6 +275,10 @@ function getMaxFhrForRun(model, run) {
     return 18;
   }
 
+  if (model.startsWith("refs_mem")) {
+    return 60;
+  }
+
   return 18;
 }
 
@@ -275,12 +289,19 @@ function imgSrc(run, fhr) {
 
   if (selectedModel === "hrrr" && selectedProduct === "refl_uh") {
     filename = "hrrr_lbf_f" + fhrName(fhr) + ".png";
+
   } else if (selectedModel === "hrrr" && selectedProduct === "hail_swath") {
     filename = "hrrr_hail_f" + fhrName(fhr) + ".png";
+
   } else if (selectedModel === "rrfs" && selectedProduct === "refl_uh") {
     filename = "rrfs_lbf_f" + fhrName(fhr) + ".png";
+
   } else if (selectedModel === "rrfs" && selectedProduct === "hail_swath") {
     filename = "rrfs_hail_f" + fhrName(fhr) + ".png";
+
+  } else if (selectedModel === "refs_mem01" && selectedProduct === "refl_uh") {
+    filename = "refs_mem01_lbf_f" + fhrName(fhr) + ".png";
+
   } else {
     return "";
   }
