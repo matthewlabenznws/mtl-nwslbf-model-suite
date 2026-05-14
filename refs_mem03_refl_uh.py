@@ -46,7 +46,7 @@ if os.path.exists(zip_path):
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(ASSET_DIR)
 
-DATA_DIR = os.path.join(BASE_DIR, "refs_mem01_subsets")
+DATA_DIR = os.path.join(BASE_DIR, "refs_mem03_subsets")
 
 OUTDIR_BASE = os.path.join(
     "site",
