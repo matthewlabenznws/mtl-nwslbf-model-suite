@@ -45,9 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
 
-    concurrency:
-      group: gh-pages-deploy
-      cancel-in-progress: false
+   concurrency:
+       group: hrrr-refl-deploy
+       cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v4
