@@ -35,14 +35,11 @@ jobs:
           python refs_mem01_refl_uh.py
           python cleanup_site_runs.py refs_mem01 refl_uh
           python write_product_runs_json.py refs_mem01 refl_uh
-          python build_index.py
 
       - uses: actions/upload-artifact@v4
         with:
           name: refs-mem01-refl-uh-output
-          path: |
-            site/runs/refs_mem01/refl_uh
-            site/index.html
+          path: site/runs/refs_mem01/refl_uh
 
   deploy:
     runs-on: ubuntu-latest
@@ -73,12 +70,10 @@ jobs:
           mkdir -p gh-pages-work/runs/refs_mem01
 
           rm -rf gh-pages-work/runs/refs_mem01/refl_uh
-          cp -r product-output/site/runs/refs_mem01/refl_uh gh-pages-work/runs/refs_mem01/refl_uh
-
-          cp product-output/site/index.html gh-pages-work/index.html
+          cp -r product-output/refl_uh gh-pages-work/runs/refs_mem01/refl_uh
 
           cd gh-pages-work
 
-          git add -A index.html runs/refs_mem01/refl_uh
-          git commit -m "Update REFS M01 reflectivity and viewer" || echo "No changes to commit"
+          git add -A runs/refs_mem01/refl_uh
+          git commit -m "Update REFS M01 reflectivity" || echo "No changes to commit"
           git push origin HEAD:gh-pages
