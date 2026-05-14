@@ -184,7 +184,7 @@ let runsByModelProduct = {
   refs_mem01: {
     refl_uh: [],
     hail_swath: []
-  }
+  },
     refs_mem02: {
     refl_uh: [],
     hail_swath: []
@@ -209,7 +209,7 @@ let runsByModelProduct = {
 const models = {
   "hrrr": "HRRR",
   "rrfs": "RRFS",
-  "refs_mem01": "REFS M01"
+  "refs_mem01": "REFS M01",
   "refs_mem02": "REFS M02",
   "refs_mem03": "REFS M03",
   "refs_mem04": "REFS M04",
@@ -270,7 +270,7 @@ async function loadAllRuns() {
     loadRunsJson("rrfs", "refl_uh"),
     loadRunsJson("rrfs", "hail_swath"),
 
-    loadRunsJson("refs_mem01", "refl_uh")
+    loadRunsJson("refs_mem01", "refl_uh"),
     loadRunsJson("refs_mem02", "refl_uh"),
     loadRunsJson("refs_mem03", "refl_uh"),
     loadRunsJson("refs_mem04", "refl_uh"),
