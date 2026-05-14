@@ -1,0 +1,40 @@
+name: Deploy Viewer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-viewer:
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: gh-pages-deploy
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build viewer index
+        run: |
+          python build_index.py
+
+      - name: Deploy viewer to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin gh-pages
+
+          rm -rf gh-pages-work
+          git worktree add gh-pages-work origin/gh-pages
+
+          cp site/index.html gh-pages-work/index.html
+
+          cd gh-pages-work
+
+          git add -A index.html
+          git commit -m "Update viewer index" || echo "No changes to commit"
+          git push origin HEAD:gh-pages
