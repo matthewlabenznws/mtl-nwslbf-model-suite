@@ -1,0 +1,79 @@
+name: REFS M03 Reflectivity Viewer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: old_site
+
+      - name: Restore previous REFS M03 reflectivity runs
+        run: |
+          mkdir -p site/runs/refs_mem03/refl_uh
+          cp -r old_site/runs/refs_mem03/refl_uh/* site/runs/refs_mem03/refl_uh/ || true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r requirements.txt
+
+      - name: Run REFS M03 Reflectivity/UH
+        run: |
+          python refs_mem03_refl_uh.py
+          python cleanup_site_runs.py refs_mem03 refl_uh
+          python write_product_runs_json.py refs_mem03 refl_uh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: refs-mem03-refl-uh-output
+          path: site/runs/refs_mem03/refl_uh
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    concurrency:
+      group: gh-pages-deploy
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: refs-mem03-refl-uh-output
+          path: product-output
+
+      - name: Deploy REFS M03 reflectivity to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin gh-pages
+
+          rm -rf gh-pages-work
+          git worktree add gh-pages-work origin/gh-pages
+
+          mkdir -p gh-pages-work/runs/refs_mem03
+          rm -rf gh-pages-work/runs/refs_mem03/refl_uh
+
+          cp -r product-output gh-pages-work/runs/refs_mem03/refl_uh
+
+          cd gh-pages-work
+
+          git add -A runs/refs_mem03/refl_uh
+          git commit -m "Update REFS M03 reflectivity" || echo "No changes to commit"
+          git push origin HEAD:gh-pages
