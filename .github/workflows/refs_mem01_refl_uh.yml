@@ -68,9 +68,9 @@ jobs:
           git worktree add gh-pages-work origin/gh-pages
 
           mkdir -p gh-pages-work/runs/refs_mem01
-
           rm -rf gh-pages-work/runs/refs_mem01/refl_uh
-          cp -r product-output/refl_uh gh-pages-work/runs/refs_mem01/refl_uh
+
+          cp -r product-output gh-pages-work/runs/refs_mem01/refl_uh
 
           cd gh-pages-work
 
