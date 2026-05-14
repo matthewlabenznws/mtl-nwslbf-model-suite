@@ -46,12 +46,12 @@ if os.path.exists(zip_path):
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(ASSET_DIR)
 
-DATA_DIR = os.path.join(BASE_DIR, "refs_mem01_subsets")
+DATA_DIR = os.path.join(BASE_DIR, "refs_mem02_subsets")
 
 OUTDIR_BASE = os.path.join(
     "site",
     "runs",
-    "refs_mem01",
+    "refs_mem03",
     "refl_uh"
 )
 
@@ -1160,7 +1160,7 @@ def plot_domain_from_fields(fields, domain_key, cfg, fhr):
             path_effects=[pe.withStroke(linewidth=2.5, foreground="white")]
         )
 
-        outname = os.path.join(domain_outdir, f"refs_mem01_lbf_f{fhr:03d}.png")
+        outname = os.path.join(domain_outdir, f"refs_mem02_lbf_f{fhr:03d}.png")
 
         plt.savefig(outname, dpi=140, bbox_inches="tight")
         plt.close(fig)
