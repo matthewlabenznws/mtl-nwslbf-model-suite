@@ -46,9 +46,9 @@ jobs:
     needs: build
 
    concurrency:
-      group: hrrr-refl-deploy
-      cancel-in-progress: false
-
+    group: gh-pages-deploy
+    cancel-in-progress: false
+    
     steps:
       - uses: actions/checkout@v4
 
