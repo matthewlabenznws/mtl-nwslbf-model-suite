@@ -46,7 +46,7 @@ jobs:
     needs: build
 
     concurrency:
-     group: refs-m01-refl-deploy
+     group: gh-pages-deploy
      cancel-in-progress: false
 
     steps:
