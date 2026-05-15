@@ -46,7 +46,7 @@ jobs:
     needs: build
 
     concurrency:
-      group: rrfs-hail-deploy
+      group: gh-pages-deploy
       cancel-in-progress: false
   
     steps:
