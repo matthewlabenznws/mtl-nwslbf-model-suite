@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     concurrency:
-       group: viewer-deploy
+       group: gh-pages-deploy
        cancel-in-progress: false
 
     steps:
